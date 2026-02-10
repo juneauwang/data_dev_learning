@@ -10,9 +10,9 @@ from datetime import datetime
 def etl_process():
     # --- Step 1: Extract (模拟生成数据) ---
     raw_data = {
-        'user_id': [1, 2, 3],
-        'order_amount': [100.5, 200.0, 150.75],
-        'category': ['Electronics', 'Books', 'Electronics']
+        'user_id': [1, 2, 3, 4],
+        'order_amount': [100.5, 200.0, 150.75, -50.5],
+        'category': ['Electronics', 'Books', 'Electronics', 'Books']
     }
     df = pd.DataFrame(raw_data)
     
@@ -23,14 +23,23 @@ def etl_process():
         axis=1
     )
     df['processed_at'] = datetime.now()
-    
-    # --- Step 3: Load (写入 Postgres) ---
+
+# --- Step 3: Data Quality Check (新加入的拦截器) ---
+    # 检查是否有负数金额
+    if (df['final_amount'] < 0).any():
+        # 记录下错误详情
+        invalid_count = (df['final_amount'] < 0).sum()
+        error_msg = f"❌ 数据校验失败：发现 {invalid_count} 条负数订单，拒绝入库！"
+        print(error_msg)
+        # 抛出异常，强制让 Airflow 任务失败
+        raise ValueError(error_msg)    
+    # --- Step 4: Load (写入 Postgres) ---
     pg_hook = PostgresHook(postgres_conn_id='postgres_default')
     
     # 【核心修改点】：手动从 Hook 获取 URI 并创建 engine
     # 这会绕过 get_sqlalchemy_engine() 中那个会导致 __extra__ 报错的逻辑
     connection_uri = pg_hook.get_uri()
-    
+    print (connection_uri) 
     # 如果 URI 里包含了 __extra__，我们手动把它剔除（这是最稳妥的过滤）
     if "__extra__" in connection_uri:
         connection_uri = connection_uri.split("?")[0]
