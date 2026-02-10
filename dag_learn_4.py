@@ -28,7 +28,7 @@ def notify_logic():
 def cleanup_logic():
     # 尝试从上游获取行数
     rows = context['ti'].xcom_pull(task_ids='run_pandas_etl', key='rows_count')
-    
+    # 判断    
     if rows:
         print(f"🧹 任务汇总：今日处理了 {rows} 条数据，清理完毕。")
     else:
