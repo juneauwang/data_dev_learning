@@ -1,3 +1,4 @@
+from airflow.utils.task_group import TaskGroup
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow import DAG
 from airflow.operators.python import PythonOperator
