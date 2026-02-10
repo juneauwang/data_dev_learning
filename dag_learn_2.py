@@ -2,6 +2,9 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 from datetime import datetime
+import random
+
+
 
 def fetch_weather():
     # 模拟 API 调用
