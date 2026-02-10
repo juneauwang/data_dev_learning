@@ -20,6 +20,8 @@ def etl_logic():
 def notify_logic():
     print("📢 通知：今日无新数据，流程结束。")
 
+def cleanup_logic():
+    print ("🧹 正在清理环境并发送最终报告...")
 with DAG(
     'smart_branching_workflow_v1',
     start_date=days_ago(1),
@@ -44,6 +46,14 @@ with DAG(
         task_id='skip_notification',
         python_callable=notify_logic
     )
+    final_task = PythonOperator(
+    	task_id='final_operator'
+	python_callable=cleanup_logic,
+	trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+
+
+
+    )
 
     # 定义依赖关系
-    branching >> [run_etl, skip_notify]
+    branching >> [run_etl, skip_notify] >> final_task
