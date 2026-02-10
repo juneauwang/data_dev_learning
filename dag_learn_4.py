@@ -16,12 +16,23 @@ def check_data_availability():
         return 'skip_notification'
 
 def etl_logic():
-    print("🚀 正在执行复杂的 ETL 逻辑...")
+    rows_processed = 100 # 模拟处理了 100 行
+    # 推送到 XCom
+    context['ti'].xcom_push(key='rows_count', value=rows_processed)
+    print(f"🚀 ETL 完成，处理了 {rows_processed} 行。")
+    #print("🚀 正在执行复杂的 ETL 逻辑...")
 
 def notify_logic():
     print("📢 通知：今日无新数据，流程结束。")
 
 def cleanup_logic():
+    # 尝试从上游获取行数
+    rows = context['ti'].xcom_pull(task_ids='run_pandas_etl', key='rows_count')
+    
+    if rows:
+        print(f"🧹 任务汇总：今日处理了 {rows} 条数据，清理完毕。")
+    else:
+        print("🧹 任务汇总：今日无数据处理，环境已重置。")
     print ("🧹 正在清理环境并发送最终报告...")
 with DAG(
     'smart_branching_workflow_v1',
