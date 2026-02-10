@@ -1,7 +1,8 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.dates import days_ago
+from airflow.providers.postgres.hooks.postgres import PostgresHook
+from sqlalchemy import create_engine
 import pandas as pd
 from datetime import datetime
 
@@ -24,12 +25,17 @@ def etl_process():
     df['processed_at'] = datetime.now()
     
     # --- Step 3: Load (写入 Postgres) ---
-    # 使用 Hook，它是 Operator 的底层，更适合在 Python 函数里操作数据库
     pg_hook = PostgresHook(postgres_conn_id='postgres_default')
     
-    # 获取 SQLAlchemy 引擎来配合 Pandas 的 to_sql
-    engine = pg_hook.get_sqlalchemy_engine()
+    # 【核心修改点】：手动从 Hook 获取 URI 并创建 engine
+    # 这会绕过 get_sqlalchemy_engine() 中那个会导致 __extra__ 报错的逻辑
+    connection_uri = pg_hook.get_uri()
     
+    # 如果 URI 里包含了 __extra__，我们手动把它剔除（这是最稳妥的过滤）
+    if "__extra__" in connection_uri:
+        connection_uri = connection_uri.split("?")[0]
+        
+    engine = create_engine(connection_uri) 
     # 将 DataFrame 写入数据库表 (如果表不存在会自动创建)
     df.to_sql('processed_orders', con=engine, if_exists='replace', index=False)
     print("数据已成功通过 Pandas 写入 Postgres！")
