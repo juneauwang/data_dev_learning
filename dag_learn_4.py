@@ -15,7 +15,7 @@ def check_data_availability():
     else:
         return 'skip_notification'
 
-def etl_logic():
+def etl_logic(**context):
     rows_processed = 100 # 模拟处理了 100 行
     # 推送到 XCom
     context['ti'].xcom_push(key='rows_count', value=rows_processed)
@@ -25,7 +25,7 @@ def etl_logic():
 def notify_logic():
     print("📢 通知：今日无新数据，流程结束。")
 
-def cleanup_logic():
+def cleanup_logic(**context):
     # 尝试从上游获取行数
     rows = context['ti'].xcom_pull(task_ids='run_pandas_etl', key='rows_count')
     # 判断    
@@ -50,7 +50,8 @@ with DAG(
     # 路径 A
     run_etl = PythonOperator(
         task_id='run_pandas_etl',
-        python_callable=etl_logic
+        python_callable=etl_logic,
+	provide_context=True # 确保上下文被注入到函数中
     )
 
     # 路径 B
