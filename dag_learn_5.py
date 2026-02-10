@@ -1,8 +1,7 @@
 from airflow import DAG
-from airflow.providers.postgres.sensors.postgres import SqlSensor
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
-
+from airflow.sensors.sql import SqlSensor
 # 定義數據處理邏輯
 def process_new_data():
     print("🎯 哨兵報告：檢測到新數據已入庫！正在啟動下游分析程序...")
