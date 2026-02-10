@@ -1,3 +1,4 @@
+from airflow.utils.trigger_rule import TriggerRule
 from airflow import DAG
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.dummy import DummyOperator # 1.10.x 可能是 DummyOperator
