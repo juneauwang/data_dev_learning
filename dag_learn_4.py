@@ -47,7 +47,7 @@ with DAG(
         python_callable=notify_logic
     )
     final_task = PythonOperator(
-    	task_id='final_operator'
+    	task_id='final_operator',
 	python_callable=cleanup_logic,
 	trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
 
