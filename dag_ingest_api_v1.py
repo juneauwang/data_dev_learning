@@ -31,25 +31,20 @@ def fetch_and_save_data():
     data = response.json()
     sample_data = data[:10]
     #users = data['results']
-    
+    rows_to_insert = [
+	(uni.get('name'),uni.get('alpha_two_code'),uni.get('country'))
+	for uni in sample_data
+    ]     
     pg_hook = PostgresHook(postgres_conn_id='postgres_default')
     
     # 准备写入数据库
 # --- 3. 写入数据库 ---
-    for uni in sample_data:
-        # 这个 API 的字段名：name, alpha_two_code, country
-        uni_name = uni.get('name')
-        uni_code = uni.get('alpha_two_code')
-        # 我们用名字做唯一标识
-        
-        insert_sql = """
-        INSERT INTO raw_users (external_id, username, email)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (external_id) DO NOTHING;
-        """
-        # 借用之前的表结构存大学数据：external_id=名字, username=代码, email=国家
-        pg_hook.run(insert_sql, parameters=(uni_name, uni_code, uni.get('country')))
-
+    pg_hook.insert_rows(
+        table='raw_users',
+        rows=rows_to_insert,
+        target_fields=['external_id', 'username', 'email'],
+        # 批量写入时的冲突处理比较复杂，通常我们会先写入临时表（Staging Table）
+    )
     logging.info(f"✅ 成功搬运 {len(sample_data)} 条大学数据！")
 # --- 3. 定义 DAG ---
 default_args = {
