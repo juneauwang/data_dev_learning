@@ -15,16 +15,17 @@ with DAG(
     catchup=False
 ) as dag:
 # 新增：初始化任务，确保表存在
-    create_stats_table = PostgresOperator(
-    	task_id='create_stats_table',
-    	postgres_conn_id='postgres_default',
-    	sql="""
-    	CREATE TABLE IF NOT EXISTS user_stats (
-        user_id INT PRIMARY KEY,
-        activity_count INT,
-        last_active TIMESTAMP
-    	);
-    	"""
+    create_table = PostgresOperator(
+        task_id='create_monitoring_table',
+        postgres_conn_id='postgres_default',
+        sql="""
+            CREATE TABLE IF NOT EXISTS user_activity_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INT,
+                action VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """
     )
     # 1. 哨兵任務：每隔 30 秒檢查一次數據庫
     wait_for_data = SqlSensor(

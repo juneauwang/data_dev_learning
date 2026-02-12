@@ -21,12 +21,15 @@ def run_user_stats_etl():
     GROUP BY user_id
     ON CONFLICT (user_id) DO UPDATE 
     SET activity_count = EXCLUDED.activity_count, 
-        last_active = EXCLUDED.last_active;
+        last_active = EXCLUDED.last_active
+    RETURNING user_id;
     """
     
+    records = pg_hook.get_records(etl_sql)
+    affected_count = len (records)
     logging.info("开始执行 ETL 转换...")
-    pg_hook.run(etl_sql)
-    logging.info("数据搬运成功！")
+    print(f"✅ 任务完成！本次共处理了 {affected_count} 个用户的数据。")
+    return affected_count  # 这个值会被自动存入 Airflow 的 XCom
 
 # 2. 定义 DAG
 with DAG(
