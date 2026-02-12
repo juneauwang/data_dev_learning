@@ -29,6 +29,7 @@ def fetch_and_save_data():
     response.raise_for_status() # 如果状态码不是 200，直接抛出异常触发重试
     
     data = response.json()
+    logging.info(f"DEBUG: 抓取成功，准备解析 {len(data)} 条记录")
 #    sample_data = data[:10]
     #users = data['results']
     rows_to_insert = [
@@ -36,7 +37,7 @@ def fetch_and_save_data():
 	for uni in data
     ]     
     pg_hook = PostgresHook(postgres_conn_id='postgres_default')
-    
+    logging.info(f"DEBUG: 元组列表构建完成，准备写入数据库")
     # 准备写入数据库
 # --- 3. 写入数据库 ---
     pg_hook.insert_rows(
