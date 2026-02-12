@@ -20,20 +20,20 @@ def on_failure_callback(context):
 # --- 2. 抓取并存储数据的逻辑 ---
 def fetch_and_save_data():
     # 模拟一个外部 API：这里用随机用户接口作为数据源
-    if random.random() < 0.5:
-        logging.info("🎲 运气不好，模拟触发网络异常...")
-        raise ConnectionError("🌐 模拟网络连接失败！Airflow 应该准备重试...")
+#    if random.random() < 0.5:
+#        logging.info("🎲 运气不好，模拟触发网络异常...")
+#        raise ConnectionError("🌐 模拟网络连接失败！Airflow 应该准备重试...")
     api_url = "http://universities.hipolabs.com/search?country=China" 
     
     response = requests.get(api_url, timeout=10)
     response.raise_for_status() # 如果状态码不是 200，直接抛出异常触发重试
     
     data = response.json()
-    sample_data = data[:10]
+#    sample_data = data[:10]
     #users = data['results']
     rows_to_insert = [
 	(uni.get('name'),uni.get('alpha_two_code'),uni.get('country'))
-	for uni in sample_data
+	for uni in data
     ]     
     pg_hook = PostgresHook(postgres_conn_id='postgres_default')
     
@@ -43,6 +43,7 @@ def fetch_and_save_data():
         table='raw_users',
         rows=rows_to_insert,
         target_fields=['external_id', 'username', 'email'],
+        commit_every=100
         # 批量写入时的冲突处理比较复杂，通常我们会先写入临时表（Staging Table）
     )
     logging.info(f"✅ 成功搬运 {len(sample_data)} 条大学数据！")
