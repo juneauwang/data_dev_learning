@@ -43,7 +43,9 @@ def fetch_and_save_data():
         table='raw_users',
         rows=rows_to_insert,
         target_fields=['external_id', 'username', 'email'],
-        commit_every=100
+        commit_every=100,
+        replace=True,          # <--- 就是这行
+        replace_index='external_id' # <--- 必须告诉它哪个字段是冲突判断的“唯一索引”
         # 批量写入时的冲突处理比较复杂，通常我们会先写入临时表（Staging Table）
     )
     logging.info(f"✅ 成功搬运 {len(sample_data)} 条大学数据！")
