@@ -30,31 +30,31 @@ def fetch_and_save_data():
     
     data = response.json()
     logging.info(f"DEBUG: 抓取成功，准备解析 {len(data)} 条记录")
-    logging.info("--- 🛡️ 开始极简模式测试 ---")
+#    logging.info("--- 🛡️ 开始极简模式测试 ---")
     # 不写数据库，只打日志，看看能不能看到这行
-    for i in range(5):
-        logging.info(f"正在计数: {i}")
-    logging.info("--- 🛡️ 测试结束 ---")
+#    for i in range(5):
+#        logging.info(f"正在计数: {i}")
+#    logging.info("--- 🛡️ 测试结束 ---")
 #    sample_data = data[:10]
     #users = data['results']
-#    rows_to_insert = [
-#	(uni.get('name'),uni.get('alpha_two_code'),uni.get('country'))
-#	for uni in data
-#    ]     
-#    pg_hook = PostgresHook(postgres_conn_id='postgres_default')
+    rows_to_insert = [
+	(uni.get('name'),uni.get('alpha_two_code'),uni.get('country'))
+	for uni in data
+    ]     
+    pg_hook = PostgresHook(postgres_conn_id='postgres_default')
     logging.info(f"DEBUG: 元组列表构建完成，准备写入数据库")
     # 准备写入数据库
 # --- 3. 写入数据库 ---
-#    pg_hook.insert_rows(
-#        table='raw_users',
-#        rows=rows_to_insert,
-#        target_fields=['external_id', 'username', 'email'],
-#        commit_every=100,
-#        replace=True,          # <--- 就是这行
-#        replace_index='external_id' # <--- 必须告诉它哪个字段是冲突判断的“唯一索引”
+    pg_hook.insert_rows(
+        table='raw_users',
+        rows=rows_to_insert,
+        target_fields=['external_id', 'username', 'email'],
+        commit_every=100,
+        replace=True,          # <--- 就是这行
+        replace_index='external_id' # <--- 必须告诉它哪个字段是冲突判断的“唯一索引”
         # 批量写入时的冲突处理比较复杂，通常我们会先写入临时表（Staging Table）
     )
-    logging.info(f"✅ 成功搬运 {len(sample_data)} 条大学数据！")
+    logging.info(f"✅ 成功搬运 {len(data)} 条大学数据！")
 # --- 3. 定义 DAG ---
 default_args = {
     'owner': 'airflow',
