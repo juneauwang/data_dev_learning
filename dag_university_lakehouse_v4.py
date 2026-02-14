@@ -8,12 +8,18 @@ import requests
 import io
 from airflow.exceptions import AirflowFailException
 # 配置信息
-S3_BUCKET_NAME = "data-platform-university-labs" # <--- 修改这里
+#S3_BUCKET_NAME = "data-platform-university-labs" # <--- 修改这里
+S3_BUCKET_NAME = "data-platform-university-test"
 S3_CONN_ID = "aws_s3_conn"            # 这是你在 UI 里创建的 Connection ID
 
 with DAG(
     'dag_university_lakehouse_v4',
-    default_args={'retries': 1},
+    default_args={
+	'owner': 'airflow',
+    	'email': ['你的收件邮箱@xxx.com'],
+    	'email_on_failure': True, # 失败时发邮件
+    	'email_on_retry': False,
+    	'retries': 1,},
     start_date=days_ago(3),     # 开启回溯，跑过去 3 天的数据
     catchup=True,               # 核心：开启补数
     schedule_interval='@daily',
