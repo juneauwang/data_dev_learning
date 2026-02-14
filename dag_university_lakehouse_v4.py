@@ -8,7 +8,7 @@ import requests
 import io
 
 # 配置信息
-S3_BUCKET_NAME = "你的-s3-bucket-名字" # <--- 修改这里
+S3_BUCKET_NAME = "data-platform-university-labs" # <--- 修改这里
 S3_CONN_ID = "aws_s3_conn"            # 这是你在 UI 里创建的 Connection ID
 
 with DAG(
