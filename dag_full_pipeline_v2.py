@@ -49,9 +49,10 @@ with DAG(
     default_args=default_args,
     description='End-to-End University Data Pipeline (Medallion Architecture)',
     schedule_interval='@daily', # 每天凌晨 0 点运行
-    start_date=days_ago(1),
-    catchup=False,
+    start_date=days_ago(5),
+    catchup=True,
     template_searchpath='/tmp',
+    max_active_runs=1,      # 补数时，一次只跑一个日期，防止把数据库压垮
 ) as dag:
 
     # 任务 A: 初始化环境 (DDL)
@@ -100,23 +101,42 @@ with DAG(
     with TaskGroup("modelling_layers") as modelling:
         
         silver_transform = PostgresOperator(
-            task_id='ods_to_dwd_silver',
+            task_id='ods_to_dwd_incremental',
             postgres_conn_id='postgres_default',
             sql="""
-            TRUNCATE TABLE dwd_universities;
-            INSERT INTO dwd_universities (university_name, country_code, country_name)
-            SELECT DISTINCT TRIM(external_id), UPPER(username), email FROM raw_users;
+-- 1. 插入新数据或更新旧数据（使用 UPSERT 逻辑）
+            INSERT INTO dwd_universities (university_name, country_code, country_name, processed_at)
+            SELECT DISTINCT 
+                TRIM(external_id), 
+                UPPER(username), 
+                email,
+                CURRENT_TIMESTAMP
+            FROM raw_users
+            -- 核心增量逻辑：只选出在本批次时间内进入 raw_users 的数据
+            WHERE ingested_at >= '{{ data_interval_start }}' 
+              AND ingested_at < '{{ data_interval_end }}'
+            ON CONFLICT (university_name) DO UPDATE SET
+                country_code = EXCLUDED.country_code,
+                processed_at = CURRENT_TIMESTAMP;
             """
         )
 
         gold_transform = PostgresOperator(
-            task_id='dwd_to_ads_gold',
+            task_id='dwd_to_ads_gold_backfill',
             postgres_conn_id='postgres_default',
             sql="""
+-- 1. 幂等性清理
             DELETE FROM ads_university_count WHERE report_date = '{{ ds }}';
+
+            -- 2. 基于逻辑日期 (ds) 的动态统计
             INSERT INTO ads_university_count (country_name, total_count, report_date)
-            SELECT country_name, COUNT(*), '{{ ds }}'::DATE 
+            SELECT 
+                country_name, 
+                COUNT(*), 
+                '{{ ds }}'::DATE 
             FROM dwd_universities 
+            -- 即使是补数，也只统计该日期及以前的数据
+            WHERE processed_at::DATE <= '{{ ds }}'::DATE 
             GROUP BY country_name;
             """
         )
