@@ -6,7 +6,7 @@ from airflow.utils.dates import days_ago
 import pandas as pd
 import requests
 import io
-
+from airflow.exceptions import AirflowFailException
 # 配置信息
 S3_BUCKET_NAME = "data-platform-university-labs" # <--- 修改这里
 S3_CONN_ID = "aws_s3_conn"            # 这是你在 UI 里创建的 Connection ID
@@ -19,7 +19,21 @@ with DAG(
     schedule_interval='@daily',
     max_active_runs=1           # 保证顺序执行，避免数据库冲突
 ) as dag:
-
+    @task
+    def validate_data_quality(s3_key, bucket_name):
+    	s3 = S3Hook(aws_conn_id=S3_CONN_ID)
+    	content = s3.read_key(s3_key, bucket_name)
+    
+    	# 读回数据进行检查 (或者直接用前面的 DF 长度)
+    	df = pd.read_parquet(io.BytesIO(content))
+    	row_count = len(df)
+    
+    	if row_count < 300:
+        # 抛出异常，阻止下游任务（Postgres 同步）运行
+             raise AirflowFailException(f"数据质量异常！预期 >300，实际仅有 {row_count}")
+    
+    	print(f"数据质量检查通过：检测到 {row_count} 条记录")
+    	return row_count
     @task
     def ingest_to_s3_parquet(ds=None, **kwargs):
         """抓取 API 数据并以 Parquet 格式存入 S3"""
@@ -67,4 +81,4 @@ with DAG(
     )
 
     # 编排链路
-    ingest_to_s3_parquet() >> ads_reporting
+    ingest_to_s3_parquet() >> validate_data_quality()  >> ads_reporting
