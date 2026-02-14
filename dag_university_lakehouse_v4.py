@@ -59,10 +59,10 @@ with DAG(
 
         -- 模拟从已有的 DWD 表汇总（假设你之前的 V2/V3 任务已存入数据）
         INSERT INTO ads_university_count (country_name, total_count, report_date)
-        SELECT country, COUNT(*), '{{ ds }}'::DATE
+        SELECT country_name, COUNT(*), '{{ ds }}'::DATE
         FROM dwd_universities
         WHERE processed_at::DATE <= '{{ ds }}'::DATE
-        GROUP BY country;
+        GROUP BY country_name;
         """
     )
 
