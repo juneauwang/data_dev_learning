@@ -25,6 +25,8 @@ with DAG(
     schedule_interval='@daily',
     max_active_runs=1           # 保证顺序执行，避免数据库冲突
 ) as dag:
+
+
     @task
     def validate_data_quality(s3_key, bucket_name):
     	s3 = S3Hook(aws_conn_id=S3_CONN_ID)
@@ -85,6 +87,15 @@ with DAG(
         GROUP BY country_name;
         """
     )
+# 1. 运行入库任务
+    s3_file_reference = ingest_to_s3_parquet()
 
-    # 编排链路
-    ingest_to_s3_parquet() >> validate_data_quality()  >> ads_reporting
+# 2. 运行校验任务，并显式传参
+# 这一步会解决你的 "missing a required argument: s3_key" 报错
+    check_data = validate_data_quality(
+    	s3_key=s3_file_reference, 
+    	bucket_name=S3_BUCKET_NAME
+    )
+
+# 3. 设置依赖链
+    s3_file_reference >> check_data >> ads_reporting
