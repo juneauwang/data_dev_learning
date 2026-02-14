@@ -16,7 +16,7 @@ with DAG(
     'dag_university_lakehouse_v4',
     default_args={
 	'owner': 'airflow',
-    	'email': ['你的收件邮箱@xxx.com'],
+    	'email': ['wangweipeng_nob@163.com'],
     	'email_on_failure': True, # 失败时发邮件
     	'email_on_retry': False,
     	'retries': 1,},
