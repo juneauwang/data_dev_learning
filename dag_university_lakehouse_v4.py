@@ -30,8 +30,8 @@ with DAG(
 
     @task
     def validate_data_quality(s3_key, bucket_name):
-    	s3 = S3Hook(aws_conn_id=S3_CONN_ID)
-# 关键：不要直接 read_key，因为那会触发自动 decode
+        s3 = S3Hook(aws_conn_id=S3_CONN_ID)
+    # 关键：不要直接 read_key，因为那会触发自动 decode
     # 我们先获取 S3 对象
         file_obj = s3.get_key(s3_key, bucket_name)
         file_content = file_obj.get()['Body'].read()
@@ -40,12 +40,12 @@ with DAG(
     	df = pd.read_parquet(io.BytesIO(file_content))
     	row_count = len(df)
     
-    	if row_count < 300:
+        if row_count < 300:
         # 抛出异常，阻止下游任务（Postgres 同步）运行
              raise AirflowFailException(f"数据质量异常！预期 >300，实际仅有 {row_count}")
     
-    	print(f"数据质量检查通过：检测到 {row_count} 条记录")
-    	return row_count
+        print(f"数据质量检查通过：检测到 {row_count} 条记录")
+        return row_count
     @task
     def ingest_to_s3_parquet(ds=None, **kwargs):
         """抓取 API 数据并以 Parquet 格式存入 S3"""
