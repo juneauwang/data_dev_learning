@@ -53,7 +53,7 @@ with DAG(
         # 2. Pandas 处理
         df = pd.DataFrame(data)
         if random.random() > 0.5:
-	     df = df.iloc[:random.randint(350, 398)]
+	    df = df.iloc[:random.randint(350, 398)]
         df = df[['name', 'alpha_two_code', 'country']]
         df.columns = ['uni_name', 'country_code', 'country']
         
