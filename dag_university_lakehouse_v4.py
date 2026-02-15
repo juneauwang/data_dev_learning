@@ -7,9 +7,10 @@ import pandas as pd
 import requests
 import io
 from airflow.exceptions import AirflowFailException
+import random
 # 配置信息
-#S3_BUCKET_NAME = "data-platform-university-labs" # <--- 修改这里
-S3_BUCKET_NAME = "data-platform-university-test"
+S3_BUCKET_NAME = "data-platform-university-labs" # <--- 修改这里
+#S3_BUCKET_NAME = "data-platform-university-test"
 S3_CONN_ID = "aws_s3_conn"            # 这是你在 UI 里创建的 Connection ID
 
 with DAG(
@@ -20,7 +21,7 @@ with DAG(
     	'email_on_failure': True, # 失败时发邮件
     	'email_on_retry': False,
     	'retries': 1,},
-    start_date=days_ago(3),     # 开启回溯，跑过去 3 天的数据
+    start_date=days_ago(30),     # 开启回溯，跑过去 3 天的数据
     catchup=True,               # 核心：开启补数
     schedule_interval='@daily',
     max_active_runs=1           # 保证顺序执行，避免数据库冲突
@@ -51,6 +52,8 @@ with DAG(
         
         # 2. Pandas 处理
         df = pd.DataFrame(data)
+        if random.random() > 0.5:
+	     df = df.iloc[:random.randint(350, 398)]
         df = df[['name', 'alpha_two_code', 'country']]
         df.columns = ['uni_name', 'country_code', 'country']
         
