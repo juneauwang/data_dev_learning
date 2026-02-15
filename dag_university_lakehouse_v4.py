@@ -35,7 +35,7 @@ with DAG(
     # 我们先获取 S3 对象
         file_obj = s3.get_key(s3_key, bucket_name)
         file_content = file_obj.get()['Body'].read()
-    
+
     	# 读回数据进行检查 (或者直接用前面的 DF 长度)
     	df = pd.read_parquet(io.BytesIO(file_content))
     	row_count = len(df)
