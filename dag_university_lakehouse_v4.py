@@ -8,6 +8,7 @@ import requests
 import io
 from airflow.exceptions import AirflowFailException
 import random
+import time
 # 配置信息
 S3_BUCKET_NAME = "data-platform-university-labs" # <--- 修改这里
 #S3_BUCKET_NAME = "data-platform-university-test"
@@ -82,7 +83,7 @@ with DAG(
     def ads_reporting(ds=None, **kwargs):
         from airflow.providers.amazon.aws.hooks.athena import AthenaHook
         from airflow.providers.postgres.hooks.postgres import PostgresHook
-    
+        import time
     # 1. 从 Athena 获取统计结果
         athena_hook = AthenaHook(aws_conn_id=S3_CONN_ID)
     # 注意：这里查的是你 Athena 里的表名 university_lake
