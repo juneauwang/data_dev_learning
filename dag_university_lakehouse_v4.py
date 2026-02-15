@@ -78,24 +78,46 @@ with DAG(
 
     # 建模任务：从 DWD 同步到 ADS 报表
     # 模拟“湖”到“仓”的汇总过程
-    ads_reporting = PostgresOperator(
-        task_id='ads_reporting_upsert',
-        postgres_conn_id='postgres_default',
-        sql="""
-        -- 幂等性删除
-        DELETE FROM ads_university_count WHERE report_date = '{{ ds }}';
-
-        -- 模拟从已有的 DWD 表汇总（假设你之前的 V2/V3 任务已存入数据）
-        INSERT INTO ads_university_count (country_name, total_count, report_date)
-        SELECT country_name, COUNT(*), '{{ ds }}'::DATE
-        FROM dwd_universities
-        WHERE processed_at::DATE <= '{{ ds }}'::DATE
-        GROUP BY country_name;
+    @task
+    def ads_reporting(ds=None, **kwargs):
+        from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+        from airflow.providers.postgres.hooks.postgres import PostgresHook
+    
+    # 1. 从 Athena 获取统计结果
+        athena_hook = AthenaHook(aws_conn_id=S3_CONN_ID)
+    # 注意：这里查的是你 Athena 里的表名 university_lake
+        query = f"""
+            SELECT 'China' as country_name, COUNT(*) as total_count, CAST('{ds}' AS DATE) as report_date
+            FROM university_lake
+            WHERE execution_date = '{ds}'
+            GROUP BY 1
         """
-    )
+    
+    # 这里的 database 是你在 Athena 创建表时用的那个（比如 default）
+        df = athena_hook.get_pandas_df(query, database="default") 
+    
+        if df.empty:
+            print(f"警告：{ds} 在 Athena 中没有查到数据")
+            return
+
+    # 2. 写入 Postgres
+        pg_hook = PostgresHook(postgres_conn_id="postgres_default")
+    
+    # 幂等性删除
+        pg_hook.run(f"DELETE FROM ads_university_count WHERE report_date = '{ds}';")
+    
+        # 插入新数据
+        for _, row in df.iterrows():
+            insert_sql = """
+                INSERT INTO ads_university_count (country_name, total_count, report_date)
+                VALUES (%s, %s, %s)
+            """
+            pg_hook.run(insert_sql, parameters=(row['country_name'], row['total_count'], row['report_date']))
+    
+        print(f"成功将 {ds} 的 {len(df)} 条汇总数据写入 Postgres")
 # 1. 运行入库任务
     s3_file_reference = ingest_to_s3_parquet()
-
+    reporting = ads_reporting()
 # 2. 运行校验任务，并显式传参
 # 这一步会解决你的 "missing a required argument: s3_key" 报错
     check_data = validate_data_quality(
@@ -104,4 +126,4 @@ with DAG(
     )
 
 # 3. 设置依赖链
-    s3_file_reference >> check_data >> ads_reporting
+    s3_file_reference >> check_data >> reporting
