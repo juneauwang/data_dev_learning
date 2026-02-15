@@ -31,10 +31,13 @@ with DAG(
     @task
     def validate_data_quality(s3_key, bucket_name):
     	s3 = S3Hook(aws_conn_id=S3_CONN_ID)
-    	content = s3.read_key(s3_key, bucket_name)
+# 关键：不要直接 read_key，因为那会触发自动 decode
+    # 我们先获取 S3 对象
+        file_obj = s3.get_key(s3_key, bucket_name)
+        file_content = file_obj.get()['Body'].read()
     
     	# 读回数据进行检查 (或者直接用前面的 DF 长度)
-    	df = pd.read_parquet(io.BytesIO(content))
+    	df = pd.read_parquet(io.BytesIO(file_content))
     	row_count = len(df)
     
     	if row_count < 300:
