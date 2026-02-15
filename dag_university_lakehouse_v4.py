@@ -106,15 +106,20 @@ with DAG(
         ) 
     
     # 等待查询完成（简单轮询）
+# 2. 手动轮询状态 (解决 Hook 缺少 backend 方法的问题)
+        print(f"正在等待 Athena 查询完成: {execution_id}")
         while True:
-            status = athena_hook.get_query_results_backend(execution_id)
-            if status in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
-               break
+              # 直接调用底层的 get_conn().get_query_execution
+            response = athena_hook.get_conn().get_query_execution(QueryExecutionId=execution_id)
+            state = response['QueryExecution']['Status']['State']
+        
+            if state in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+                break
             time.sleep(1)
 
-        if status != 'SUCCEEDED':
-            raise ValueError(f"Athena 查询失败，状态: {status}")
-
+        if state != 'SUCCEEDED':
+            reason = response['QueryExecution']['Status'].get('StateChangeReason', 'Unknown')
+            raise ValueError(f"Athena 查询失败! 状态: {state}, 原因: {reason}")
     # 3. 获取结果并解析
         results = athena_hook.get_query_results(execution_id)
     
