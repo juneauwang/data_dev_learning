@@ -37,9 +37,9 @@ with DAG(
         file_content = file_obj.get()['Body'].read()
 
     	# 读回数据进行检查 (或者直接用前面的 DF 长度)
-    	df = pd.read_parquet(io.BytesIO(file_content))
-    	row_count = len(df)
-    
+        df = pd.read_parquet(io.BytesIO(file_content))
+        row_count = len(df)
+
         if row_count < 300:
         # 抛出异常，阻止下游任务（Postgres 同步）运行
              raise AirflowFailException(f"数据质量异常！预期 >300，实际仅有 {row_count}")
