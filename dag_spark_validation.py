@@ -27,7 +27,7 @@ def dag_spark_iceberg_validation():
 		from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 	aws_hook = AwsBaseHook(aws_conn_id="aws_s3_conn", client_type="s3")
-credentials = aws_hook.get_credentials()
+	credentials = aws_hook.get_credentials()
 	aws_access_key = credentials.access_key
 	aws_secret_key = credentials.secret_key
 # 如果你的连接里配置了 token（临时凭证），也拿出来
