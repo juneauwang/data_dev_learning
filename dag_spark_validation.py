@@ -77,6 +77,6 @@ def dag_spark_iceberg_validation():
 
 		spark.stop()
 
-test_pyspark_iceberg()
+	test_pyspark_iceberg()
 
 dag_spark_iceberg_validation_instance = dag_spark_iceberg_validation()
