@@ -46,19 +46,19 @@ def dag_spark_iceberg_validation():
 			.config("spark.sql.catalog.local.warehouse", f"s3a://data-platform-university-labs/iceberg-warehouse") \
 # --- AWS S3 专属配置 ---
 			.config("spark.hadoop.fs.s3a.access.key", aws_access_key) \
-				.config("spark.hadoop.fs.s3a.secret.key", aws_secret_key) \
-				.config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
-				.config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+			.config("spark.hadoop.fs.s3a.secret.key", aws_secret_key) \
+			.config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
+			.config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
 # 启用 AWS SDK 默认的凭证提供者鏈（可选，如果你想用 IAM Role）
-				.config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
-					.getOrCreate()
+			.config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+			.getOrCreate()
 
-					print("✅ SparkSession 初始化成功！")
+	print("✅ SparkSession 初始化成功！")
 
 # 1. 測試：創建一個簡單的 DataFrame 並寫入 Iceberg 表
-					data = [("China", 398), ("USA", 500), ("Japan", 200)]
+	data = [("China", 398), ("USA", 500), ("Japan", 200)]
 	columns = ["country", "university_count"]
-test_df = spark.createDataFrame(data, columns)
+	test_df = spark.createDataFrame(data, columns)
 
 	print("📝 正在嘗試寫入 Iceberg 表...")
 # 在 local catalog 下創建一個名為 test_table 的表
@@ -66,15 +66,15 @@ test_df = spark.createDataFrame(data, columns)
 		.tableProperty("format-version", "2") \
 		.createOrReplace()
 
-		print("🎉 Iceberg 表寫入成功！")
+	print("🎉 Iceberg 表寫入成功！")
 
 # 2. 測試：讀取剛才寫入的表
 	read_df = spark.table("local.db.test_iceberg_table")
-read_df.show()
+	read_df.show()
 
 	print(f"📈 讀取成功，總行數: {read_df.count()}")
 
-spark.stop()
+	spark.stop()
 
 test_pyspark_iceberg()
 
