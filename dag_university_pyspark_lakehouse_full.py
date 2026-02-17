@@ -29,19 +29,35 @@ def university_full_load_pipeline():
         print("📡 正在从 API 获取全量大学数据...")
         url = "http://universities.hipolabs.com/search"
         response = requests.get(url)
-        data = response.json()
-        print(f"✅ 获取成功，共 {len(data)} 条记录")
+        print(f"📡 正在尝试下载全量数据 (使用流式模式)...")
+        
+        # 增加 headers 模拟浏览器，有时能绕过代理限制
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        
+        try:
+            # 增加 timeout=60 防止无限挂起
+            response = requests.get(url, headers=headers, timeout=60, stream=True)
+            response.raise_for_status() # 如果 404 或 500 会直接报错
+            
+            # 使用 content 而不是 .json()，因为 .json() 在断流时会崩
+            full_content = response.content
+            
+            # 验证 JSON 完整性
+            data = json.loads(full_content)
+            print(f"✅ 下载成功！记录数: {len(data)}")
 
-        # 将原始 JSON 存入 S3
-        s3_hook = S3Hook(aws_conn_id=S3_CONN_ID)
-        s3_hook.load_string(
-            string_data=json.dumps(data),
-            key=BRONZE_KEY,
-            bucket_name=S3_BUCKET,
-            replace=True
-        )
-        print(f"📦 原始数据已存入: s3://{S3_BUCKET}/{BRONZE_KEY}")
-        return BRONZE_KEY
+            s3_hook = S3Hook(aws_conn_id=S3_CONN_ID)
+            s3_hook.load_string(
+                string_data=json.dumps(data),
+                key=BRONZE_KEY,
+                bucket_name=S3_BUCKET,
+                replace=True
+            )
+            return BRONZE_KEY
+
+        except Exception as e:
+            print(f"❌ 下载失败: {e}")
+            raise  # 抛出异常让 Airflow 重试
 
     @task
     def task_silver_spark_transform(bronze_key):
