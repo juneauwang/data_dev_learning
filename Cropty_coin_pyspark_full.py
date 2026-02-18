@@ -104,10 +104,58 @@ def crypto_lakehouse_pipeline():
 
         print("🎉 加密货币 Silver 层数据转换完成！")
         spark.stop()
+        return "Silver Table Updated"
+        
+    @task
+    def task_gold_spark_analysis(upstream_status):
+        from pyspark.sql import SparkSession
+        from pyspark.sql import functions as F
+        print(f"🚀 接收到上游状态: {upstream_status}，开始 Gold 层计算...")
+        # 保持配置一致性
+        spark = SparkSession.builder \
+            .appName("CryptoGoldQuant") \
+            .config("spark.sql.catalog.local", "org.apache.iceberg.spark.SparkCatalog") \
+            .config("spark.sql.catalog.local.type", "hadoop") \
+            .config("spark.sql.catalog.local.warehouse", "s3a://data-platform-university-labs/iceberg-warehouse") \
+            .getOrCreate()
+
+        # 1. 加载 Silver 表
+        silver_df = spark.table("local.db.crypto_silver")
+
+        # 2. 计算量化指标
+        # 先计算全局总市值用于权重计算
+        total_market_cap = silver_df.select(F.sum("market_cap")).collect()[0][0]
+
+        gold_df = silver_df.withColumn(
+            "market_cap_weight", 
+            F.round((F.col("market_cap") / total_market_cap) * 100, 4)
+        ).withColumn(
+            "volatility_tier",
+            F.when(F.abs("price_change_percentage_24h") >= 10, "Extreme")
+            .when(F.abs("price_change_percentage_24h") >= 5, "High")
+            .otherwise("Stable")
+        ).withColumn(
+            "is_top_dominance", 
+            F.col("market_cap_weight") > 1.0  # 权重超过 1% 的币种
+        ).select(
+            "id", "symbol", "current_price", 
+            "market_cap_weight", "volatility_tier", "is_top_dominance",
+            F.current_timestamp().alias("analysis_at")
+        )
+
+        # 3. 写入 Gold 表 (Iceberg 格式)
+        # 使用 createOrReplace 以便我们反复调试
+        gold_df.writeTo("local.db.crypto_gold_metrics").createOrReplace()
+        
+        print("✨ Gold 量化表已生成！")
+        gold_df.show(10)
+        spark.stop()
+        
 
     # 执行流程
     bronze_file = task_bronze_ingest_crypto()
-    task_silver_spark_quant_transform(bronze_file)
+    silver_status = task_silver_spark_quant_transform(bronze_file)
+    task_gold_spark_analysis(silver_status)
 
 # 实例化
 crypto_dag = crypto_lakehouse_pipeline()
