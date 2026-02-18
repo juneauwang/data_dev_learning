@@ -72,7 +72,7 @@ def crypto_lakehouse_pipeline():
         
         file_key = f"bronze/crypto_top100_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
         
-        aws_hook = AwsGenericHook(aws_conn_id='aws_s3_conn')
+        aws_hook = AwsGenericHook(aws_conn_id='aws_s3_conn',client_type='s3')
         s3_client = aws_hook.get_conn()
         s3_client.put_object(
             Bucket=S3_BUCKET,
