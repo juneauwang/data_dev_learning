@@ -110,13 +110,24 @@ def crypto_lakehouse_pipeline():
     def task_gold_spark_analysis(upstream_status):
         from pyspark.sql import SparkSession
         from pyspark.sql import functions as F
+        from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         print(f"🚀 接收到上游状态: {upstream_status}，开始 Gold 层计算...")
+        aws_hook = AwsBaseHook(aws_conn_id=S3_CONN_ID, client_type="s3")
+        creds = aws_hook.get_credentials()
         # 保持配置一致性
         spark = SparkSession.builder \
             .appName("CryptoGoldQuant") \
+            .config("spark.jars.packages", 
+                    "org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.3.1,"
+                    "org.apache.hadoop:hadoop-aws:3.3.4") \
+            .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
             .config("spark.sql.catalog.local", "org.apache.iceberg.spark.SparkCatalog") \
             .config("spark.sql.catalog.local.type", "hadoop") \
-            .config("spark.sql.catalog.local.warehouse", "s3a://data-platform-university-labs/iceberg-warehouse") \
+            .config("spark.sql.catalog.local.warehouse", f"s3a://{S3_BUCKET}/iceberg-warehouse") \
+            .config("spark.hadoop.fs.s3a.access.key", creds.access_key) \
+            .config("spark.hadoop.fs.s3a.secret.key", creds.secret_key) \
+            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+            .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
             .getOrCreate()
 
         # 1. 加载 Silver 表
