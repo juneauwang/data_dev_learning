@@ -21,12 +21,11 @@ def get_spark_session(app_name):
     
     ICEBERG_VERSION = "1.4.2"
     SPARK_VERSION = "3.4"
-    AWS_SDK_VERSION = "1.12.262"
     
     packages = [
         f"org.apache.iceberg:iceberg-spark-runtime-{SPARK_VERSION}_2.12:{ICEBERG_VERSION}",
         "org.apache.hadoop:hadoop-aws:3.3.4",
-        f"com.amazonaws:aws-java-sdk-bundle:{AWS_SDK_VERSION}"
+        f"org.apache.iceberg:iceberg-aws-bundle:{ICEBERG_VERSION}"
     ]
 
     return SparkSession.builder \
