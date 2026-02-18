@@ -32,6 +32,8 @@ def get_spark_session(app_name):
         .appName(app_name) \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.client.region", "us-east-1") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.endpoint", "https://s3.us-east-1.amazonaws.com") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.access-key", creds.access_key) \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.secret-key", creds.secret_key) \
         .config("spark.jars.packages", ",".join(packages)) \
         .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}", "org.apache.iceberg.spark.SparkCatalog") \
