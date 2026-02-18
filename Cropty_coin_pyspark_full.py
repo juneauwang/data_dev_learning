@@ -142,8 +142,8 @@ def crypto_lakehouse_pipeline():
             F.round((F.col("market_cap") / total_market_cap) * 100, 4)
         ).withColumn(
             "volatility_tier",
-            F.when(F.abs("price_change_percentage_24h") >= 10, "Extreme")
-            .when(F.abs("price_change_percentage_24h") >= 5, "High")
+            F.when(F.abs("pct_change_24h") >= 10, "Extreme")
+            .when(F.abs("pct_change_24h") >= 5, "High")
             .otherwise("Stable")
         ).withColumn(
             "is_top_dominance", 
