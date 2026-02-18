@@ -1,172 +1,154 @@
-from airflow.decorators import dag, task
-from datetime import datetime
 import json
+from datetime import datetime, timedelta
+import requests
+from airflow.decorators import dag, task
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
-# 配置常量 - 以后你就是量化数据工程师了
+# --- 全局常量配置 ---
 S3_BUCKET = "data-platform-university-labs"
-S3_CONN_ID = "aws_s3_conn"
-BRONZE_KEY = "bronze/crypto/markets_top100.json"
-# 使用 CoinGecko API 获取市值前 100 的币种
-API_URL = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1"
+GLUE_DATABASE = "crypto_db"  # 请确保你在 AWS Glue Console 已经创建了这个库
+ICEBERG_CATALOG = "glue_catalog"
 
-default_args = {
-    'owner': 'airflow',
-    'start_date': datetime(2023, 1, 1),
-}
+def get_spark_session(app_name):
+    """
+    辅助函数：在每个 Task 内部调用，确保 Spark 环境隔离且配置一致
+    """
+    from pyspark.sql import SparkSession
+    
+    # 动态获取 AWS 凭证 (从 Airflow Connection 'aws_s3_conn' 拿)
+    aws_hook = AwsGenericHook(aws_conn_id='aws_s3_conn')
+    creds = aws_hook.get_credentials()
+    
+    ICEBERG_VERSION = "1.4.2"
+    SPARK_VERSION = "3.4"
+    AWS_SDK_VERSION = "1.12.262"
+    
+    packages = [
+        f"org.apache.iceberg:iceberg-spark-runtime-{SPARK_VERSION}_2.12:{ICEBERG_VERSION}",
+        "org.apache.hadoop:hadoop-aws:3.3.4",
+        f"com.amazonaws:aws-java-sdk-bundle:{AWS_SDK_VERSION}"
+    ]
+
+    return SparkSession.builder \
+        .appName(app_name) \
+        .config("spark.jars.packages", ",".join(packages)) \
+        .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}", "org.apache.iceberg.spark.SparkCatalog") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.warehouse", f"s3a://{S3_BUCKET}/iceberg-warehouse") \
+        .config("spark.hadoop.fs.s3a.access.key", creds.access_key) \
+        .config("spark.hadoop.fs.s3a.secret.key", creds.secret_key) \
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+        .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
+        .getOrCreate()
 
 @dag(
-    default_args=default_args,
-    schedule_interval="@hourly",  # 既然是量化，我们可以每小时跑一次
+    dag_id='crypto_lakehouse_pipeline_v2',
+    schedule_interval=None,
+    start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=['crypto', 'iceberg', 'quant']
+    tags=['pyspark', 'iceberg', 'glue']
 )
 def crypto_lakehouse_pipeline():
 
-    @task(retries=3, retry_delay=30)
+    @task
     def task_bronze_ingest_crypto():
-        """第一步：全量拉取 CoinGecko 数据并存入 S3 (Bronze 层)"""
-        import requests
-        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
-        print(f"📡 正在从 CoinGecko 获取行情数据...")
-        headers = {'User-Agent': 'Mozilla/5.0'}
+        """
+        Step 1: 从 CoinGecko 获取原始数据并存入 S3 Bronze 层 (JSON)
+        """
+        url = "https://api.coingecko.com/api/v3/coins/markets"
+        params = {
+            "vs_currency": "usd",
+            "order": "market_cap_desc",
+            "per_page": 100,
+            "page": 1,
+            "sparkline": False
+        }
         
-        try:
-            # 使用我们定义的 API_URL
-            response = requests.get(API_URL, headers=headers, timeout=60)
-            response.raise_for_status()
-            
-            data = response.json()
-            print(f"✅ 下载成功！获取到 {len(data)} 个币种行情")
-
-            s3_hook = S3Hook(aws_conn_id=S3_CONN_ID)
-            s3_hook.load_string(
-                string_data=json.dumps(data),
-                key=BRONZE_KEY,
-                bucket_name=S3_BUCKET,
-                replace=True
-            )
-            return BRONZE_KEY
-
-        except Exception as e:
-            print(f"❌ Crypto 数据采集失败: {e}")
-            raise 
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        file_key = f"bronze/crypto_top100_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+        
+        aws_hook = AwsGenericHook(aws_conn_id='aws_s3_conn')
+        s3_client = aws_hook.get_conn()
+        s3_client.put_object(
+            Bucket=S3_BUCKET,
+            Key=file_key,
+            Body=json.dumps(data)
+        )
+        return file_key
 
     @task
-    def task_silver_spark_quant_transform(bronze_key):
-        """第二步：量化清洗，存入 Iceberg Silver 层"""
-        from pyspark.sql import SparkSession
+    def task_silver_spark_quant_transform(bronze_file_key):
+        """
+        Step 2: 读取 Bronze JSON，清洗并重命名，存入 Glue Iceberg Silver 表
+        """
         from pyspark.sql.functions import col, to_timestamp
-        from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-
-        # 1. 获取 AWS 凭证
-        aws_hook = AwsBaseHook(aws_conn_id=S3_CONN_ID, client_type="s3")
-        creds = aws_hook.get_credentials()
-
-        # 2. 初始化 Spark
-        spark = SparkSession.builder \
-            .appName("CryptoBronzeToSilver") \
-            .config("spark.jars.packages", 
-                    "org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.3.1,"
-                    "org.apache.hadoop:hadoop-aws:3.3.4") \
-            .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-            .config("spark.sql.catalog.local", "org.apache.iceberg.spark.SparkCatalog") \
-            .config("spark.sql.catalog.local.type", "hadoop") \
-            .config("spark.sql.catalog.local.warehouse", f"s3a://{S3_BUCKET}/iceberg-warehouse") \
-            .config("spark.hadoop.fs.s3a.access.key", creds.access_key) \
-            .config("spark.hadoop.fs.s3a.secret.key", creds.secret_key) \
-            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-            .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
-            .getOrCreate()
-
-        # 3. 读取 Bronze JSON
-        print(f"📖 正在读取 Crypto 原始数据...")
-        df = spark.read.option("multiLine", "true").json(f"s3a://{S3_BUCKET}/{bronze_key}")
         
-        # 4. 量化字段清洗
-        silver_df = df.select(
+        spark = get_spark_session("CryptoSilverTransform")
+        
+        # 1. 读取原始 JSON
+        df_raw = spark.read.json(f"s3a://{S3_BUCKET}/{bronze_file_key}")
+        
+        # 2. 清洗并重命名 (核心修改点：alias)
+        df_silver = df_raw.select(
             col("id"),
             col("symbol"),
             col("name"),
-            col("current_price").cast("double"),
-            col("market_cap").cast("long"),
-            col("total_volume").cast("long"),
-            col("price_change_percentage_24h").alias("pct_change_24h"),
+            col("current_price"),
+            col("market_cap"),
+            col("total_volume"),
+            col("price_change_percentage_24h").alias("pct_change_24h"), # 改名
             to_timestamp(col("last_updated")).alias("updated_at")
-        ).drop_duplicates(["id", "updated_at"])
-
-        # 5. 写入 Iceberg (按 id 分区)
-        print("📝 正在更新 Iceberg Silver 表 (crypto_silver)...")
-        silver_df.writeTo("local.db.crypto_silver") \
-            .tableProperty("format-version", "2") \
-            .partitionedBy("id") \
-            .createOrReplace()
-
-        print("🎉 加密货币 Silver 层数据转换完成！")
-        spark.stop()
-        return "Silver Table Updated"
-        
-    @task
-    def task_gold_spark_analysis(upstream_status):
-        from pyspark.sql import SparkSession
-        from pyspark.sql import functions as F
-        from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-        print(f"🚀 接收到上游状态: {upstream_status}，开始 Gold 层计算...")
-        aws_hook = AwsBaseHook(aws_conn_id=S3_CONN_ID, client_type="s3")
-        creds = aws_hook.get_credentials()
-        # 保持配置一致性
-        spark = SparkSession.builder \
-            .appName("CryptoGoldQuant") \
-            .config("spark.jars.packages", 
-                    "org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.3.1,"
-                    "org.apache.hadoop:hadoop-aws:3.3.4") \
-            .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-            .config("spark.sql.catalog.local", "org.apache.iceberg.spark.SparkCatalog") \
-            .config("spark.sql.catalog.local.type", "hadoop") \
-            .config("spark.sql.catalog.local.warehouse", f"s3a://{S3_BUCKET}/iceberg-warehouse") \
-            .config("spark.hadoop.fs.s3a.access.key", creds.access_key) \
-            .config("spark.hadoop.fs.s3a.secret.key", creds.secret_key) \
-            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-            .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
-            .getOrCreate()
-
-        # 1. 加载 Silver 表
-        silver_df = spark.table("local.db.crypto_silver")
-
-        # 2. 计算量化指标
-        # 先计算全局总市值用于权重计算
-        total_market_cap = silver_df.select(F.sum("market_cap")).collect()[0][0]
-
-        gold_df = silver_df.withColumn(
-            "market_cap_weight", 
-            F.round((F.col("market_cap") / total_market_cap) * 100, 4)
-        ).withColumn(
-            "volatility_tier",
-            F.when(F.abs("pct_change_24h") >= 10, "Extreme")
-            .when(F.abs("pct_change_24h") >= 5, "High")
-            .otherwise("Stable")
-        ).withColumn(
-            "is_top_dominance", 
-            F.col("market_cap_weight") > 1.0  # 权重超过 1% 的币种
-        ).select(
-            "id", "symbol", "current_price", 
-            "market_cap_weight", "volatility_tier", "is_top_dominance",
-            F.current_timestamp().alias("analysis_at")
         )
-
-        # 3. 写入 Gold 表 (Iceberg 格式)
-        # 使用 createOrReplace 以便我们反复调试
-        gold_df.writeTo("local.db.crypto_gold_metrics").createOrReplace()
         
-        print("✨ Gold 量化表已生成！")
-        gold_df.show(10)
+        # 3. 写入 Glue Catalog
+        df_silver.writeTo(f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_silver").createOrReplace()
+        
         spark.stop()
-        
+        return f"{GLUE_DATABASE}.crypto_silver"
 
-    # 执行流程
-    bronze_file = task_bronze_ingest_crypto()
-    silver_status = task_silver_spark_quant_transform(bronze_file)
+    @task
+    def task_gold_spark_analysis(silver_table_path):
+        """
+        Step 3: 读取 Silver 表，计算量化指标，存入 Glue Iceberg Gold 表
+        """
+        from pyspark.sql.functions import col, sum as _sum, round as _round, when, abs as _abs
+        
+        spark = get_spark_session("CryptoGoldAnalysis")
+        
+        # 1. 从 Glue 读取 Silver
+        df = spark.table(f"{ICEBERG_CATALOG}.{silver_table_path}")
+        
+        # 2. 量化计算逻辑
+        total_mkt_cap = df.select(_sum("market_cap")).collect()[0][0]
+        
+        gold_df = df.withColumn(
+            "mkt_cap_weight", _round((col("market_cap") / total_mkt_cap) * 100, 4)
+        ).withColumn(
+            "volatility_rank",
+            when(_abs(col("pct_change_24h")) >= 10, "Extreme") # 使用 Silver 重命名后的名字
+            .when(_abs(col("pct_change_24h")) >= 5, "High")
+            .otherwise("Stable")
+        ).select(
+            "id", "symbol", "current_price", "mkt_cap_weight", "volatility_rank", "updated_at"
+        )
+        
+        # 3. 写入 Gold 表
+        gold_df.writeTo(f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_gold_metrics").createOrReplace()
+        
+        print("✅ Gold 层分析完成，已在 Athena 中可用")
+        gold_df.show(10)
+        
+        spark.stop()
+
+    # --- 编排执行流程 ---
+    bronze_key = task_bronze_ingest_crypto()
+    silver_status = task_silver_spark_quant_transform(bronze_key)
     task_gold_spark_analysis(silver_status)
 
-# 实例化
+# 实例化 DAG
 crypto_dag = crypto_lakehouse_pipeline()
