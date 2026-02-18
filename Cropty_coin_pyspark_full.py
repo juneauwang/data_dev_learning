@@ -14,6 +14,8 @@ def get_spark_session(app_name):
     辅助函数：在每个 Task 内部调用，确保 Spark 环境隔离且配置一致
     """
     from pyspark.sql import SparkSession
+    import os
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
     
     # 动态获取 AWS 凭证 (从 Airflow Connection 'aws_s3_conn' 拿)
     aws_hook = AwsGenericHook(aws_conn_id='aws_s3_conn')
@@ -21,7 +23,9 @@ def get_spark_session(app_name):
     
     ICEBERG_VERSION = "1.4.2"
     SPARK_VERSION = "3.4"
-    
+    os.environ["AWS_ACCESS_KEY_ID"] = creds.access_key
+    os.environ["AWS_SECRET_ACCESS_KEY"] = creds.secret_key
+    os.environ["AWS_REGION"] = "us-east-1"
     packages = [
         f"org.apache.iceberg:iceberg-spark-runtime-{SPARK_VERSION}_2.12:{ICEBERG_VERSION}",
         "org.apache.hadoop:hadoop-aws:3.3.4",
