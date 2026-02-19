@@ -115,7 +115,7 @@ def crypto_lakehouse_pipeline():
         
         # 3. 写入 Glue Catalog
         #df_silver.writeTo(f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_silver").createOrReplace()
-        df_silver.write.format("iceberg").mode("append").save(f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_silver")
+        df_silver.write.format("iceberg").mode("append").saveAsTable(f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_silver")
         
         spark.stop()
         return f"{GLUE_DATABASE}.crypto_silver"
@@ -148,7 +148,7 @@ def crypto_lakehouse_pipeline():
         
         # 3. 写入 Gold 表
         #gold_df.writeTo(f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_gold_metrics").createOrReplace()
-        gold_df.write.format("iceberg").mode("append").save(f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_gold_metrics")
+        gold_df.write.format("iceberg").mode("append").saveAsTable(f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_gold_metrics")
         
         print("✅ Gold 层分析完成，已在 Athena 中可用")
         gold_df.show(10)
