@@ -4,6 +4,7 @@ import requests
 from airflow.decorators import dag, task
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
+
 # --- 全局常量配置 ---
 S3_BUCKET = "data-platform-university-labs"
 GLUE_DATABASE = "crypto_db"  # 请确保你在 AWS Glue Console 已经创建了这个库
@@ -52,7 +53,7 @@ def get_spark_session(app_name):
 
 @dag(
     dag_id='crypto_lakehouse_pipeline_v2',
-    schedule_interval=None,
+    schedule_interval=timedelta(minutes=10),
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['pyspark', 'iceberg', 'glue']
