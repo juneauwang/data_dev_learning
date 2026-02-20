@@ -197,7 +197,7 @@ def crypto_lakehouse_pipeline():
         pivot_df = pivot_df.ffill().dropna(thresh=2)
         log_returns = np.log(pivot_df).diff().dropna()
         log_returns = log_returns.loc[:, log_returns.notnull().sum() > 3]
-        
+        print(pivot_df.head(5))
         # 计算与 BTC 的相关性
         if 'btc' in log_returns.columns:
             corr_series = log_returns.corr()['btc'].drop('btc').sort_values(ascending=False)
