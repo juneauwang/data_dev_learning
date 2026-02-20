@@ -166,7 +166,7 @@ def crypto_lakehouse_pipeline():
         # 也可以直接写在这里测试
         from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         s3_staging = "s3://data-platform-university-labs/athena_result/ " 
-        aws_hook = AwsBaseHook(aws_conn_id='my_aws_conn', client_type='athena')
+        aws_hook = AwsBaseHook(aws_conn_id='aws_s3_conn', client_type='athena')
         creds = aws_hook.get_credentials()
         cursor = connect(
             aws_access_key=creds.access_key,
