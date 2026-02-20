@@ -191,10 +191,12 @@ def crypto_lakehouse_pipeline():
         if df.empty:
             print("No data found.")
             return
-
+        df['updated_at'] = pd.to_datetime(df['updated_at']).dt.floor('min')
         # 数据处理
-        pivot_df = df.pivot_table(index='updated_at', columns='symbol', values='current_price')
+        pivot_df = df.pivot_table(index='updated_at', columns='symbol', values='current_price', aggfunc='mean')
+        pivot_df = pivot_df.ffill().dropna(thresh=2)
         log_returns = np.log(pivot_df).diff().dropna()
+        log_returns = log_returns.loc[:, log_returns.notnull().sum() > 3]
         
         # 计算与 BTC 的相关性
         if 'btc' in log_returns.columns:
