@@ -168,8 +168,11 @@ def crypto_lakehouse_pipeline():
         s3_staging = "s3://data-platform-university-labs/athena_result/ " 
         aws_hook = AwsBaseHook(aws_conn_id='aws_s3_conn', client_type='athena')
         creds = aws_hook.get_credentials()
+        os.environ["AWS_ACCESS_KEY_ID"] = creds.access_key
+        os.environ["AWS_SECRET_ACCESS_KEY"] = creds.secret_key
+        os.environ["AWS_REGION"] = "us-east-1"
         cursor = connect(
-            aws_access_key=creds.access_key,
+            aws_access_key_id=creds.access_key,
             aws_secret_access_key=creds.secret_key,
             s3_staging_dir=s3_staging,
             region_name="us-east-1",
