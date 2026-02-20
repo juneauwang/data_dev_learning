@@ -201,24 +201,22 @@ def crypto_lakehouse_pipeline():
         else:
             print("BTC not found in symbols.")
 
-    # --- 编排执行流程 ---
-    def crypto_lakehouse_pipeline():
-        # 1. 抓取原始数据
-        bronze_key = task_bronze_ingest_crypto()
-        
-        # 2. Spark 清洗存入 Silver
-        silver_status = task_silver_spark_quant_transform(bronze_key)
-        
-        # 3. 原有的 Gold 聚合（继续保留，用于 Grafana 看板）
-        gold_status = task_gold_spark_analysis(silver_status)
+    # 1. 抓取原始数据
+    bronze_key = task_bronze_ingest_crypto()
+    
+    # 2. Spark 清洗存入 Silver
+    silver_status = task_silver_spark_quant_transform(bronze_key)
+    
+    # 3. 原有的 Gold 聚合（继续保留，用于 Grafana 看板）
+    gold_status = task_gold_spark_analysis(silver_status)
 
-        # 4. 新增的 NumPy 量化分析 (接在 Silver 后面)
-        # 即使不把 silver_status 传进去，>> 也能保证顺序
-        analysis_report = task_analyze_correlation()
-        
-        # 设置依赖关系
-        silver_status >> gold_status
-        silver_status >> analysis_report
+    # 4. 新增的 NumPy 量化分析 (接在 Silver 后面)
+    # 即使不把 silver_status 传进去，>> 也能保证顺序
+    analysis_report = task_analyze_correlation()
+    
+    # 设置依赖关系
+    silver_status >> gold_status
+    silver_status >> analysis_report
 
 # 实例化 DAG
 crypto_dag = crypto_lakehouse_pipeline()
