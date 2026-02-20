@@ -160,12 +160,17 @@ def crypto_lakehouse_pipeline():
         spark.stop()
     
     @task(task_id="analyze_crypto_correlation")
+    
     def task_analyze_correlation():
         # 注意：这里的连接信息可以存在 Airflow Connection 里以保安全
         # 也可以直接写在这里测试
+        from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         s3_staging = "s3://data-platform-university-labs/athena_result/ " 
-        
+        aws_hook = AwsBaseHook(aws_conn_id='my_aws_conn', client_type='athena')
+        creds = aws_hook.get_credentials()
         cursor = connect(
+            aws_access_key=creds.access_key,
+            aws_secret_access_key=creds.secret_key,
             s3_staging_dir=s3_staging,
             region_name="us-east-1",
             cursor_class=PandasCursor
