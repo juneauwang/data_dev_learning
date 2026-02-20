@@ -3,6 +3,10 @@ from datetime import datetime, timedelta
 import requests
 from airflow.decorators import dag, task
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from pyathena import connect
+from pyathena.pandas.cursor import PandasCursor
+import pandas as pd
+import numpy as np
 
 
 # --- 全局常量配置 ---
@@ -154,11 +158,67 @@ def crypto_lakehouse_pipeline():
         gold_df.show(10)
         
         spark.stop()
+    
+    @task(task_id="analyze_crypto_correlation")
+    def task_analyze_correlation():
+        # 注意：这里的连接信息可以存在 Airflow Connection 里以保安全
+        # 也可以直接写在这里测试
+        s3_staging = "s3://data-platform-university-labs/athena_result/ " 
+        
+        cursor = connect(
+            s3_staging_dir=s3_staging,
+            region_name="us-east-1",
+            cursor_class=PandasCursor
+        ).cursor()
+
+        query = """
+        SELECT updated_at, symbol, current_price
+        FROM crypto_db.crypto_silver
+        WHERE updated_at > current_timestamp - interval '24' hour
+        """
+        
+        df = cursor.execute(query).as_pandas()
+        
+        if df.empty:
+            print("No data found.")
+            return
+
+        # 数据处理
+        pivot_df = df.pivot_table(index='updated_at', columns='symbol', values='current_price')
+        log_returns = np.log(pivot_df).diff().dropna()
+        
+        # 计算与 BTC 的相关性
+        if 'btc' in log_returns.columns:
+            corr_series = log_returns.corr()['btc'].drop('btc').sort_values(ascending=False)
+            
+            # 重点：打印到日志，Airflow 的 Logs 就能看到结果
+            print("-" * 30)
+            print("TOP CORRELATED WITH BTC:")
+            print(corr_series.head(10))
+            print("\nTOP ANTI-CORRELATED WITH BTC:")
+            print(corr_series.tail(10))
+            print("-" * 30)
+        else:
+            print("BTC not found in symbols.")
 
     # --- 编排执行流程 ---
-    bronze_key = task_bronze_ingest_crypto()
-    silver_status = task_silver_spark_quant_transform(bronze_key)
-    task_gold_spark_analysis(silver_status)
+    def crypto_lakehouse_pipeline():
+        # 1. 抓取原始数据
+        bronze_key = task_bronze_ingest_crypto()
+        
+        # 2. Spark 清洗存入 Silver
+        silver_status = task_silver_spark_quant_transform(bronze_key)
+        
+        # 3. 原有的 Gold 聚合（继续保留，用于 Grafana 看板）
+        gold_status = task_gold_spark_analysis(silver_status)
+
+        # 4. 新增的 NumPy 量化分析 (接在 Silver 后面)
+        # 即使不把 silver_status 传进去，>> 也能保证顺序
+        analysis_report = task_analyze_correlation()
+        
+        # 设置依赖关系
+        silver_status >> gold_status
+        silver_status >> analysis_report
 
 # 实例化 DAG
 crypto_dag = crypto_lakehouse_pipeline()
