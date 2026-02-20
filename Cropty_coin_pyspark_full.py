@@ -57,7 +57,7 @@ def get_spark_session(app_name):
 
 @dag(
     dag_id='crypto_lakehouse_pipeline_v2',
-    schedule_interval=timedelta(minutes=30),
+    schedule_interval=timedelta(minutes=10),
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['pyspark', 'iceberg', 'glue']
