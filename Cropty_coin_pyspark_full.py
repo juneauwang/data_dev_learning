@@ -165,6 +165,7 @@ def crypto_lakehouse_pipeline():
         # 注意：这里的连接信息可以存在 Airflow Connection 里以保安全
         # 也可以直接写在这里测试
         from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+        import os
         s3_staging = "s3://data-platform-university-labs/athena_result/ " 
         aws_hook = AwsBaseHook(aws_conn_id='aws_s3_conn', client_type='athena')
         creds = aws_hook.get_credentials()
