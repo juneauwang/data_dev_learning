@@ -214,6 +214,47 @@ def crypto_lakehouse_pipeline():
             print("-" * 30)
         else:
             print("BTC not found in symbols.")
+        matrix = log_returns.corr()
+        current_time = pd.Timestamp.now()
+        all_corr_data = []
+
+        # 遍历矩阵的行和列
+        # matrix.index 是币种A，matrix.columns 是币种B
+        for symbol_a in matrix.index:
+            for symbol_b in matrix.columns:
+                # 技巧：为了节省空间，我们通常只存“下三角”矩阵，或者排除自己跟自己比 (A != B)
+                if symbol_a != symbol_b:
+                    val = matrix.loc[symbol_a, symbol_b]
+                    if not pd.isna(val):
+                        all_corr_data.append({
+                            "base_symbol": str(symbol_a),
+                            "target_symbol": str(symbol_b),
+                            "correlation": float(val),
+                            "computed_at": current_time
+                        })
+
+        # 转换为 Spark DataFrame 并写入
+        if all_corr_data:
+            spark = get_spark_session("CryptoFullMatrixAnalysis")
+            # 定义 Schema (保持一致)
+            from pyspark.sql.types import StructType, StructField, StringType, FloatType, TimestampType
+            schema = StructType([
+                StructField("base_symbol", StringType(), True),
+                StructField("target_symbol", StringType(), True),
+                StructField("correlation", FloatType(), True),
+                StructField("computed_at", TimestampType(), True)
+            ])
+            
+            spark_full_corr_df = spark.createDataFrame(all_corr_data, schema=schema)
+            
+            # 写入 Iceberg
+            table_name = f"{ICEBERG_CATALOG}.{GLUE_DATABASE}.crypto_gold_correlation_matrix"
+            spark_full_corr_df.write \
+                .format("iceberg") \
+                .mode("append") \
+                .saveAsTable(table_name)
+            print(f"✅ Full Matrix ({len(all_corr_data)} rows) persisted.")
+        
 
     # 1. 抓取原始数据
     bronze_key = task_bronze_ingest_crypto()
