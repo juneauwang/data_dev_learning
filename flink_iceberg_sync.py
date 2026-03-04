@@ -5,6 +5,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 import requests
 import time
 import os
+import json
 
 # --- 配置区 ---
 # 如果 Airflow 和 Flink 在同一个 K8s Namespace，直接用 Service 名
