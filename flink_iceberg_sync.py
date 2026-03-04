@@ -1,9 +1,10 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
-from airflow.providers.amazon.aws.hooks.base_aws import AwsHook # 导入 AWS Hook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 import requests
 import time
+import os
 
 # --- 配置区 ---
 # 如果 Airflow 和 Flink 在同一个 K8s Namespace，直接用 Service 名
@@ -19,8 +20,11 @@ DEFAULT_ARGS = {
 
 def run_flink_sql_task(**kwargs):
     session_url = f"{FLINK_GATEWAY_URL}/sessions"
-    aws_hook = AwsHook(aws_conn_id=AWS_CONN_ID, client_type="s3")
+    aws_hook = AwsGenericHook(aws_conn_id='aws_s3_conn')
     credentials = aws_hook.get_credentials()
+    os.environ["AWS_ACCESS_KEY_ID"] = credentials.access_key
+    os.environ["AWS_SECRET_ACCESS_KEY"] = credentials.secret_key
+    os.environ["AWS_REGION"] = "us-east-1"
     access_key = credentials.access_key
     secret_key = credentials.secret_key
     # 1. 创建 Session
