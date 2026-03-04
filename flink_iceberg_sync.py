@@ -38,7 +38,7 @@ def run_flink_sql_task(**kwargs):
       'type'='iceberg',
       'catalog-impl'='org.apache.iceberg.aws.glue.GlueCatalog',
       'io-impl'='org.apache.iceberg.aws.s3.S3FileIO',
-      'warehouse'='s3a://data-platform-university-labs/iceberg-warehouse/',
+      'warehouse'='s3://data-platform-university-labs/iceberg-warehouse/',
       's3.access-key' = '{access_key}',
       's3.secret-key' = '{secret_key}',
       's3.endpoint' = 's3.amazonaws.com'
@@ -63,6 +63,8 @@ def run_flink_sql_task(**kwargs):
             if status == "FINISHED":
                 break
             if status == "ERROR":
+                err_resp = requests.get(f"{session_url}/{session_handle}/operations/{op_handle}/result").json()
+                print(f"❌ 详细错误原因: {json.dumps(err_resp, indent=2)}")
                 raise Exception(f"SQL Execution Failed: {sql}")
             time.sleep(3)
     
