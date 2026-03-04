@@ -46,7 +46,7 @@ def run_flink_sql_task(**kwargs):
         "SHOW TABLES" # 或者你的同步语句
     ]
 
-    for sql in sql_statements:
+    for sql in statements:
         print(f"Executing: {sql[:50]}...")
         stmt_url = f"{session_url}/{session_handle}/statements"
         op_resp = requests.post(stmt_url, json={"statement": sql})
