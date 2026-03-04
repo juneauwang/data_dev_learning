@@ -1,30 +1,34 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.amazon.aws.hooks.base_aws import AwsHook # 导入 AWS Hook
 from datetime import datetime, timedelta
+from airflow.providers.amazon.aws.hooks.base_aws import AwsHook # 导入 AWS Hook
 import requests
 import time
 
 # --- 配置区 ---
+# 如果 Airflow 和 Flink 在同一个 K8s Namespace，直接用 Service 名
+# 如果你还是在本地开发环境调试，先用 localhost (配合你的 port-forward)
 FLINK_GATEWAY_URL = "http://my-first-flink-cluster-rest:8083/v1" 
-AWS_CONN_ID = "aws_s3_conn" # 你在 Airflow UI 里定义的 Connection ID
+AWS_CONN_ID = "aws_default" # 你在 Airflow UI 里定义的 Connection ID
+
+DEFAULT_ARGS = {
+    'owner': 'sre',
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
 
 def run_flink_sql_task(**kwargs):
-    # --- 关键步骤：从 Airflow 获取 AWS 凭证 ---
+    session_url = f"{FLINK_GATEWAY_URL}/sessions"
     aws_hook = AwsHook(aws_conn_id=AWS_CONN_ID, client_type="s3")
     credentials = aws_hook.get_credentials()
-    
     access_key = credentials.access_key
     secret_key = credentials.secret_key
-    # 如果有 session_token (临时凭证)，Flink Iceberg 也支持添加 's3.session-token'
-    
-    session_url = f"{FLINK_GATEWAY_URL}/sessions"
-    
     # 1. 创建 Session
-    resp = requests.post(session_url, json={"sessionName": "airflow_iceberg_sync"})
+    resp = requests.post(session_url, json={"sessionName": "airflow_iceberg_job"})
     session_handle = resp.json()["sessionHandle"]
+    print(f"Connected to Flink. Session: {session_handle}")
 
-    # 2. 动态构建 SQL (使用从 Hook 获取的 AK/SK)
+# 2. 动态构建 SQL (使用从 Hook 获取的 AK/SK)
     create_catalog_sql = f"""
     CREATE CATALOG IF NOT EXISTS iceberg_catalog WITH (
       'type'='iceberg',
@@ -36,14 +40,39 @@ def run_flink_sql_task(**kwargs):
       's3.endpoint' = 's3.amazonaws.com'
     )
     """
-
     statements = [
         create_catalog_sql,
         "USE CATALOG iceberg_catalog",
         "SHOW TABLES" # 或者你的同步语句
     ]
 
-    for sql in statements:
-        # ... 提交逻辑与之前一致 ...
-        print(f"Executing SQL via Gateway...")
-        # (此处省略之前的 requests 轮询逻辑，保持代码整洁)
+    for sql in sql_statements:
+        print(f"Executing: {sql[:50]}...")
+        stmt_url = f"{session_url}/{session_handle}/statements"
+        op_resp = requests.post(stmt_url, json={"statement": sql})
+        op_handle = op_resp.json()["operationHandle"]
+
+        # 轮询直到完成
+        status_url = f"{session_url}/{session_handle}/operations/{op_handle}/status"
+        while True:
+            status = requests.get(status_url).json()["status"]
+            if status == "FINISHED":
+                break
+            if status == "ERROR":
+                raise Exception(f"SQL Execution Failed: {sql}")
+            time.sleep(3)
+    
+    print("All Flink tasks finished successfully!")
+
+with DAG(
+    'flink_iceberg_automation',
+    default_args=DEFAULT_ARGS,
+    start_date=datetime(2024, 1, 1),
+    schedule_interval=None, # 手动触发
+    catchup=False
+) as dag:
+
+    sync_iceberg_to_ch = PythonOperator(
+        task_id='sync_iceberg_to_clickhouse',
+        python_callable=run_flink_sql_task
+    )
