@@ -15,7 +15,7 @@ AWS_CONN_ID = "aws_default" # 你在 Airflow UI 里定义的 Connection ID
 
 DEFAULT_ARGS = {
     'owner': 'sre',
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(minutes=5),
 }
 
