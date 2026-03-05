@@ -42,7 +42,8 @@ def run_flink_sql_task(**kwargs):
       'warehouse'='s3://data-platform-university-labs/iceberg-warehouse/',
       's3.access-key' = '{access_key}',
       's3.secret-key' = '{secret_key}',
-      's3.endpoint' = 's3.amazonaws.com'
+      's3.endpoint' = 's3.amazonaws.com',
+      's3.region' = 'us-east-1'
     )
     """
     statements = [
