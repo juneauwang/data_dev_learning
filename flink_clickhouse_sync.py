@@ -82,7 +82,6 @@ def run_sync_job(**kwargs):
             'connector' = 'clickhouse',
             'url' = 'jdbc:clickhouse://clickhouse:8123/default',
             'table-name' = 'crypto_prices_sink',
-            'driver' = 'com.clickhouse.jdbc.ClickHouseDriver',
             'username' = 'default',
             'password' = '',
             'sink.batch-size' = '500',
