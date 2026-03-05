@@ -35,7 +35,7 @@ def run_flink_sql_task(**kwargs):
 
 # 2. 动态构建 SQL (使用从 Hook 获取的 AK/SK)
     create_catalog_sql = f"""
-    CREATE CATALOG IF NOT EXISTS iceberg_catalog WITH (
+    CREATE CATALOG iceberg_catalog WITH (
       'type'='iceberg',
       'catalog-impl'='org.apache.iceberg.aws.glue.GlueCatalog',
       'io-impl'='org.apache.iceberg.aws.s3.S3FileIO',
