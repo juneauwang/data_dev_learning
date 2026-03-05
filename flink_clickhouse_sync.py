@@ -71,17 +71,17 @@ def run_sync_job(**kwargs):
 
         # 4. 创建 ClickHouse 目标映射表
         # 注意：这里的 url 需要在 K8s 内部能解析到 clickhouse-server
+        # 1. 创建 ClickHouse 映射表 (确保字段名和类型匹配)
         create_ch_sink = """
-        CREATE TABLE IF NOT EXISTS `default`.clickhouse_sink (
+        CREATE TABLE IF NOT EXISTS `default_catalog`.`default`.clickhouse_sink (
             `id` STRING,
             `symbol` STRING,
-            `price` DOUBLE,
-            `ts_ms` BIGINT,
-            `dt` STRING
+            `current_price` DOUBLE,
+            `updated_at` TIMESTAMP_LTZ(6)
         ) WITH (
             'connector' = 'clickhouse',
-            'url' = 'jdbc:clickhouse://clickhouse-server:8123/default',
-            'table-name' = 'crypto_prices',
+            'url' = 'jdbc:clickhouse://clickhouse:8123/default',
+            'table-name' = 'crypto_prices_sink',
             'username' = 'default',
             'password' = '',
             'sink.batch-size' = '500'
@@ -92,9 +92,10 @@ def run_sync_job(**kwargs):
         # 5. 提交异步 INSERT 任务
         # 使用 INSERT INTO 会在 Flink Dashboard 生成一个持久 Job
         insert_sql = """
-        INSERT INTO `default`.clickhouse_sink
-        SELECT id, symbol, price, ts_ms, dt
-        FROM `iceberg_db`.`crypto_table` /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
+        INSERT INTO `default_catalog`.`default`.clickhouse_sink
+        SELECT id, symbol, current_price, updated_at
+        FROM `iceberg_catalog`.`crypto_db`.`crypto_silver` 
+        /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
         """
         # 注意：execute_sql 里的轮询只管任务是否“提交成功”
         # 对于 INSERT 这种持久任务，提交后会返回 FINISHED
