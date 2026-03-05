@@ -84,7 +84,6 @@ def run_sync_job(**kwargs):
             'table-name' = 'crypto_prices_sink',
             'username' = 'default',
             'password' = '',
-            'cluster' = 'default',
             'use-local' = 'true', 
             'sink.batch-size' = '500',
             'sink.flush-interval' = '1000'
