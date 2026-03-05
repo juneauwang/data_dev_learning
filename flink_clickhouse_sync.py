@@ -92,7 +92,7 @@ def run_sync_job(**kwargs):
         # 5. 提交异步 INSERT 任务
         # 使用 INSERT INTO 会在 Flink Dashboard 生成一个持久 Job
         insert_sql = """
-        INSERT INTO default.clickhouse_sink
+        INSERT INTO `default`.clickhouse_sink
         SELECT id, symbol, price, ts_ms, dt
         FROM `iceberg_db`.`crypto_table` /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */
         """
