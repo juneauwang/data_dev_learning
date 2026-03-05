@@ -72,7 +72,7 @@ def run_sync_job(**kwargs):
         # 4. 创建 ClickHouse 目标映射表
         # 注意：这里的 url 需要在 K8s 内部能解析到 clickhouse-server
         create_ch_sink = """
-        CREATE TABLE IF NOT EXISTS default.clickhouse_sink (
+        CREATE TABLE IF NOT EXISTS `default`.clickhouse_sink (
             `id` STRING,
             `symbol` STRING,
             `price` DOUBLE,
