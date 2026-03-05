@@ -79,16 +79,14 @@ def run_sync_job(**kwargs):
             `current_price` DOUBLE,
             `updated_at` TIMESTAMP_LTZ(6)
         ) WITH (
-            'connector' = 'jdbc',
+            'connector' = 'clickhouse',
             'url' = 'jdbc:clickhouse://clickhouse:8123/default',
             'table-name' = 'crypto_prices_sink',
             'username' = 'default',
-            'driver' = 'com.clickhouse.jdbc.ClickHouseDriver',
             'password' = '',
-            -- 注意：JDBC connector 的参数名是下面这些，别写错了
-            'sink.buffer-flush.max-rows' = '500',
-            'sink.buffer-flush.interval' = '1s',
-            'sink.max-retries' = '3'
+            'use-local' = 'true', 
+            'sink.batch-size' = '500',
+            'sink.flush-interval' = '1000'
         )
         """
         execute_sql(session_url, session_handle, create_ch_sink)
