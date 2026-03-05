@@ -79,7 +79,7 @@ def run_sync_job(**kwargs):
             `current_price` DOUBLE,
             `updated_at` TIMESTAMP_LTZ(6)
         ) WITH (
-            'connector' = 'jdbc',
+            'connector' = 'clickhouse',
             'url' = 'jdbc:clickhouse://clickhouse-shard0-0:8123/default',
             'table-name' = 'crypto_prices_sink',
             'username' = 'default',
