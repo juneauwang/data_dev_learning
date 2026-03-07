@@ -73,28 +73,28 @@ def run_sync_job(**kwargs):
         # 注意：这里的 url 需要在 K8s 内部能解析到 clickhouse-server
         # 1. 创建 ClickHouse 映射表 (确保字段名和类型匹配)
         create_ch_sink = """
-        CREATE TABLE IF NOT EXISTS `default_catalog`.`default_database`.clickhouse_sink (
-            `id` STRING,
-            `symbol` STRING,
-            `current_price` DOUBLE,
-            `updated_at` TIMESTAMP_LTZ(6)
-        ) WITH (
-            'connector' = 'clickhouse',
-            'url' = 'jdbc:clickhouse://clickhouse:8123/default',
-            'table-name' = 'crypto_prices_sink',
-            'username' = 'default',
-            'password' = '',
-            'use-local' = 'true', 
-            'sink.batch-size' = '500',
-            'sink.flush-interval' = '1000'
-        )
+CREATE TABLE IF NOT EXISTS `iceberg_catalog`.`default`.clickhouse_sink (
+    `id` STRING,
+    `symbol` STRING,
+    `current_price` DOUBLE,
+    `updated_at` TIMESTAMP_LTZ(6)
+) WITH (
+    'connector' = 'jdbc',
+    'url' = 'jdbc:clickhouse://clickhouse:8123/default',
+    'table-name' = 'crypto_prices_sink', -- 这是 ClickHouse 里的真实表名
+    'username' = 'default',
+    'password' = '',
+    'sink.buffer-flush.max-rows' = '500',
+    'sink.buffer-flush.interval' = '1s'
+);
         """
+        
         execute_sql(session_url, session_handle, create_ch_sink)
 
         # 5. 提交异步 INSERT 任务
         # 使用 INSERT INTO 会在 Flink Dashboard 生成一个持久 Job
         insert_sql = """
-        INSERT INTO `default_catalog`.`default_database`.clickhouse_sink
+        INSERT INTO `iceberg_catalog`.`default`.clickhouse_sink
         SELECT id, symbol, current_price, updated_at
         FROM `iceberg_catalog`.`crypto_db`.`crypto_silver` 
         /*+ OPTIONS('streaming'='true', 'monitor-interval'='10s') */

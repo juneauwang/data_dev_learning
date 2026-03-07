@@ -48,11 +48,13 @@ def get_spark_session(app_name):
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}", "org.apache.iceberg.spark.SparkCatalog") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO") \
-        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.warehouse", f"s3a://{S3_BUCKET}/iceberg-warehouse") \
-        .config("spark.hadoop.fs.s3a.access.key", creds.access_key) \
-        .config("spark.hadoop.fs.s3a.secret.key", creds.secret_key) \
-        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-        .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.warehouse", f"s3://{S3_BUCKET}/iceberg-warehouse") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.access-key", creds.access_key) \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.secret-key", creds.secret_key) \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.region", "us-east-1") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.client.region", "us-east-1") \
+        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.glue.endpoint", "https://glue.us-east-1.amazonaws.com") \
         .getOrCreate()
 
 @dag(
@@ -103,7 +105,7 @@ def crypto_lakehouse_pipeline():
         spark = get_spark_session("CryptoSilverTransform")
         
         # 1. 读取原始 JSON
-        df_raw = spark.read.json(f"s3a://{S3_BUCKET}/{bronze_file_key}")
+        df_raw = spark.read.json(f"s3://{S3_BUCKET}/{bronze_file_key}")
         
         # 2. 清洗并重命名 (核心修改点：alias)
         df_silver = df_raw.select(
