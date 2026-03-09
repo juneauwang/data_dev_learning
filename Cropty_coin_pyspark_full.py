@@ -49,10 +49,10 @@ def get_spark_session(app_name):
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.warehouse", f"s3://{S3_BUCKET}/iceberg-warehouse") \
-        .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.access-key", creds.access_key) \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.secret-key", creds.secret_key) \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.s3.region", "us-east-1") \
+        .config("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.client.region", "us-east-1") \
         .config(f"spark.sql.catalog.{ICEBERG_CATALOG}.glue.endpoint", "https://glue.us-east-1.amazonaws.com") \
         .getOrCreate()
