@@ -1,3 +1,4 @@
+from airflow.models import Variable
 import os
 import json
 import logging
