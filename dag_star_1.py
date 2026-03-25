@@ -5,6 +5,7 @@ import io
 import os
 import matplotlib.pyplot as plt
 from skyfield.api import load, Star
+from skyfield.api import Loader as SkyfieldLoader
 from skyfield.data import hipparcos
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
@@ -26,7 +27,7 @@ def render_celestial_background(**kwargs):
     
     # 2. 加载本地数据
     print(f"🚀 正在从 {ASTRONOMY_DATA_DIR} 加载天文之魂...")
-    loader = load(ASTRONOMY_DATA_DIR)
+    loader = SkyfieldLoader(ASTRONOMY_DATA_DIR)
     ts = loader.timescale()
     t = ts.now()
     
