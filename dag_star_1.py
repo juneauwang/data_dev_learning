@@ -85,8 +85,7 @@ def render_celestial_background(**kwargs):
             Bucket=S3_BUCKET,
             Key=S3_KEY,
             Body=img_buf,
-            ContentType='image/png',
-            ACL='public-read' # 确保 Grafana 越过权限直接访问
+            ContentType='image/png'
         )
         print("✅ 任务圆满完成！")
     except Exception as e:
