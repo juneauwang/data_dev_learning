@@ -26,7 +26,7 @@ def render_celestial_background(**kwargs):
     
     # 2. 加载本地数据
     print(f"🚀 正在从 {ASTRONOMY_DATA_DIR} 加载天文之魂...")
-    loader = load.Loader(ASTRONOMY_DATA_DIR)
+    loader = load(ASTRONOMY_DATA_DIR)
     ts = loader.timescale()
     t = ts.now()
     
