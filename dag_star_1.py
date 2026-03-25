@@ -55,7 +55,8 @@ def render_celestial_background(**kwargs):
     print("🎨 正在渲染 Canvas 背景图...")
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(12, 8))
-    
+    fig, ax = plt.subplots(figsize=(12, 8), facecolor='#00050A') # 给画布上色
+    ax.set_facecolor('#00050A') # 给绘图区上色 
     # 绘制星点
     ax.scatter(ra.hours, dec.degrees, s=200, color='#A0E6FF', edgecolors='white', alpha=0.8)
     
@@ -71,7 +72,7 @@ def render_celestial_background(**kwargs):
     
     # 5. 直接上传 S3 (内存流操作)
     img_buf = io.BytesIO()
-    fig.savefig(img_buf, format='png', bbox_inches='tight', pad_inches=0, transparent=True)
+    fig.savefig(img_buf, format='png', bbox_inches='tight', pad_inches=0, transparent=False, facecolor=fig.get_facecolor())
     img_buf.seek(0)
     plt.close(fig)
 
