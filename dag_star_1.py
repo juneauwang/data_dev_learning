@@ -54,11 +54,10 @@ def render_celestial_background(**kwargs):
     # 4. 绘图渲染
     print("🎨 正在渲染 Canvas 背景图...")
     plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(12, 8))
-    fig, ax = plt.subplots(figsize=(12, 8), facecolor='#00050A') # 给画布上色
+    fig, ax = plt.subplots(figsize=(16, 10), facecolor='#00050A') # 给画布上色
     ax.set_facecolor('#00050A') # 给绘图区上色 
     # 绘制星点
-    ax.scatter(ra.hours, dec.degrees, s=200, color='#A0E6FF', edgecolors='white', alpha=0.8)
+    ax.scatter(ra.hours, dec.degrees, s=1, color='#A0E6FF', edgecolors='none', alpha=0.3)
     
     # 标注名称
     star_names = ['Vega', 'Altair', 'Deneb']
