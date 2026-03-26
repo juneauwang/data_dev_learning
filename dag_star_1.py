@@ -40,7 +40,7 @@ def render_celestial_background(**kwargs):
 
         # ✨ 审美关键点 1：筛选 Vmag <= 6.5 的星星（约 9000 颗肉眼可见星）
         # 这样背景才不会只有“三盏灯”
-        bright_stars_df = df[df['Vmag'] <= 6.5].copy()
+        bright_stars_df = df[df['magnitude'] <= 6.5].copy()
         stars = Star.from_dataframe(bright_stars_df)
         print(f"✨ 成功加载 {len(bright_stars_df)} 颗星，准备点亮星空...")
     except Exception as e:
