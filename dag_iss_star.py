@@ -62,7 +62,7 @@ def render_astronomy_monitoring():
     
     # 加载 HIP 星表 (需确保 Worker 能访问网络或预置文件)
     with load_local.open('hipparcos.gz') as f:
-        stars = hipparcos.load_load_dataframe(f)
+        stars = hipparcos.load_dataframe(f)
 
     # C. 绘图设置
     fig = plt.figure(figsize=(10, 10), facecolor='#000008')
