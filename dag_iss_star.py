@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from skyfield.api import load, wgs84
-from skyfield.data import mpc
+from skyfield.data import hipparcos
 import io
 import os
 from skyfield.api import Loader as SkyfieldLoader
@@ -62,7 +62,7 @@ def render_astronomy_monitoring():
     
     # 加载 HIP 星表 (需确保 Worker 能访问网络或预置文件)
     with load_local.open('hipparcos.gz') as f:
-        stars = mpc.load_hipparcos(f)
+        stars = hipparcos.load_hipparcos(f)
 
     # C. 绘图设置
     fig = plt.figure(figsize=(10, 10), facecolor='#000008')
