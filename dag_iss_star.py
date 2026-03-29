@@ -67,15 +67,15 @@ def render_astronomy_monitoring():
     # C. 绘图设置
     fig = plt.figure(figsize=(10, 10), facecolor='#000008')
     ax = fig.add_subplot(111, projection='polar', facecolor='#000008')
-    
+    bright_stars = stars[stars['magnitude'] <= 5.5]    
     # 极坐标转换逻辑
     # 1. 绘制背景星空
-    ra_rad = stars.ra_hours * (np.pi / 12.0)
-    r_val = 90 - stars['dec_degrees']
+    ra_rad = bright_stars.ra_hours * (np.pi / 12.0)
+    r_val = 90 - bright_stars['dec_degrees']
     
     # 筛选 FOV 范围内的星 (简化版)
-    ax.scatter(ra_rad, r_val, s=(6.0 - stars['magnitude'])**2 * 0.3, 
-               color='white', alpha=0.8, edgecolors='none')
+    ax.scatter(ra_rad, r_val, s=(6.0 - bright_stars['magnitude'])**2 * 0.5, 
+               color='white', alpha=0.9, edgecolors='none',zorder=1)
 
     # 2. 绘制 ISS 轨迹
     if df is not None and not df.empty:
@@ -94,9 +94,9 @@ def render_astronomy_monitoring():
             iss_dec.append(90 - dec.degrees)
 
         # 绘制亮橘色轨迹
-        ax.plot(iss_ra, iss_dec, color='#FF4500', linewidth=2, alpha=0.9, label='ISS Tracker')
+        ax.plot(iss_ra, iss_dec, color='#FF4500', linewidth=3, alpha=1.0, label='ISS Tracker',zorder=10)
         # 标注当前点
-        ax.scatter(iss_ra[-1], iss_dec[-1], color='#FFD700', s=100, marker='h', label='Live ISS')
+        ax.scatter(iss_ra[-1], iss_dec[-1], color='#FFD700', s=200, marker='h', label='Live ISS',zorder=11)
         
     # 3. 极坐标美化
     ax.set_theta_zero_location('N')
