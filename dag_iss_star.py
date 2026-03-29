@@ -10,7 +10,7 @@ from skyfield.api import load, wgs84
 from skyfield.data import mpc
 import io
 import os
-
+from skyfield.api import Loader as SkyfieldLoader
 # --- 1. 配置参数 (SRE 生产环境建议) ---
 # K8S Service 内部地址
 CH_URL = "http://clickhouse-headless:8123/" 
@@ -53,14 +53,15 @@ def render_astronomy_monitoring():
     
     # A. 获取数据
     df = get_ch_data(hours=1)
-    
+
+    load_local = SkyfieldLoader('/home/airflow/astronomy_data')    
     # B. 加载历表 (Skyfield 会自动缓存到本地)
-    eph = load('de421.bsp')
+    eph = load_local('de421.bsp')
     earth = eph['earth']
     ts_scale = load.timescale()
     
     # 加载 HIP 星表 (需确保 Worker 能访问网络或预置文件)
-    with load.open('hip_main.dat') as f:
+    with load_local.open('hipparcos.gz') as f:
         stars = mpc.load_hipparcos(f)
 
     # C. 绘图设置
