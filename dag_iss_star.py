@@ -62,7 +62,7 @@ def render_astronomy_monitoring():
     
     # 加载 HIP 星表 (需确保 Worker 能访问网络或预置文件)
     with load_local.open('hipparcos.gz') as f:
-        stars = hipparcos.load_hipparcos(f)
+        stars = hipparcos.load_load_dataframe(f)
 
     # C. 绘图设置
     fig = plt.figure(figsize=(10, 10), facecolor='#000008')
@@ -70,7 +70,7 @@ def render_astronomy_monitoring():
     
     # 极坐标转换逻辑
     # 1. 绘制背景星空
-    ra_rad = stars['ra_hours'] * (np.pi / 12.0)
+    ra_rad = stars.ra_hours * (np.pi / 12.0)
     r_val = 90 - stars['dec_degrees']
     
     # 筛选 FOV 范围内的星 (简化版)
