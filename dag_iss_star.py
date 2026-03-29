@@ -76,6 +76,8 @@ def render_astronomy_monitoring():
     # 筛选 FOV 范围内的星 (简化版)
     ax.scatter(ra_rad, r_val, s=(6.0 - bright_stars['magnitude'])**2 * 0.5, 
                color='white', alpha=0.9, edgecolors='none',zorder=1)
+    DYNAMIC_CENTER_RA = 19.5
+    DYNAMIC_CENTER_DEC = 30.0
 
     # 2. 绘制 ISS 轨迹
     if df is not None and not df.empty:
@@ -85,7 +87,8 @@ def render_astronomy_monitoring():
         iss_times = ts_scale.from_datetimes(df['ts'].dt.tz_localize('UTC'))
         iss_ra = []
         iss_dec = []
-        
+        # 1. 获取 ISS 最新的赤经赤纬 (RA/Dec)
+        # 我们直接用最后一点的坐标
         for i in range(len(df)):
             p = wgs84.latlon(df.iloc[i]['lat'], df.iloc[i]['lon'])
             astrometric = earth.at(iss_times[i]).observe(p)
@@ -101,13 +104,19 @@ def render_astronomy_monitoring():
            ax.text(iss_ra[-1], iss_dec[-1] + 1, # 在 ISS 上方偏一点标注
                 f"Live ISS Now\n({last_point['lat']:.2f}, {last_point['lon']:.2f})", 
                 color='#FFD700', fontsize=12, fontweight='bold', 
-                ha='center', va='bottom', zorder=30) # zorder=30
+                ha='center', va='bottom', zorder=30) # zorder=30i
+        DYNAMIC_CENTER_RA = ra.hours # 使用最后一次循环的 RA (小时)
+        DYNAMIC_CENTER_DEC = dec.degrees # 使用最后一次循环的 Dec (角度)
+        print(f"🎯 自动对焦至 ISS 位置: RA {DYNAMIC_CENTER_RA:.2f}, Dec {DYNAMIC_CENTER_DEC:.2f}")
 
         
     # 3. 极坐标美化
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(-1)
-    ax.set_rlim(90 - (CENTER_DEC + FOV/2), 90 - (CENTER_DEC - FOV/2))
+    ax.set_rlim(90 - (DYNAMIC_CENTER_DEC + FOV/2), 90 - (DYNAMIC_CENTER_DEC - FOV/2))
+    center_theta = DYNAMIC_CENTER_RA * (np.pi / 12.0)
+    ax.set_thetamin(np.degrees(center_theta - (FOV/15))) # 粗略计算显示范围
+    ax.set_thetamax(np.degrees(center_theta + (FOV/15)))
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.grid(False)
