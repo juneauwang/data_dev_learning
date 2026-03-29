@@ -115,12 +115,13 @@ def render_astronomy_monitoring():
     ax.set_theta_direction(-1)
     ax.set_rlim(90 - (DYNAMIC_CENTER_DEC + FOV/2), 90 - (DYNAMIC_CENTER_DEC - FOV/2))
     center_theta = DYNAMIC_CENTER_RA * (np.pi / 12.0)
-    ax.set_thetamin(np.degrees(center_theta - (FOV/15))) # 粗略计算显示范围
-    ax.set_thetamax(np.degrees(center_theta + (FOV/15)))
+    ax.set_thetamin(360) # 粗略计算显示范围
+    ax.set_thetamax(0)
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.grid(False)
-    
+    # 强制刷新图例，确保亮橘色和金色六角星的说明出现在右上角
+    ax.legend(loc='upper right', facecolor='#000008', edgecolor='white', fontsize=8, labelcolor='white')
     plt.title(f"Live ISS Monitoring | {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", 
               color='white', pad=20)
     
