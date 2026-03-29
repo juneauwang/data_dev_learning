@@ -92,11 +92,17 @@ def render_astronomy_monitoring():
             ra, dec, _ = astrometric.radec()
             iss_ra.append(ra.hours * (np.pi / 12.0))
             iss_dec.append(90 - dec.degrees)
-
+        if len(df) > 1:
         # 绘制亮橘色轨迹
-        ax.plot(iss_ra, iss_dec, color='#FF4500', linewidth=3, alpha=1.0, label='ISS Tracker',zorder=10)
+           ax.plot(iss_ra, iss_dec, color='#FF4500', linewidth=5.0, alpha=1.0,linestyle='-', label='ISS Tracker',zorder=20)
         # 标注当前点
-        ax.scatter(iss_ra[-1], iss_dec[-1], color='#FFD700', s=200, marker='h', label='Live ISS',zorder=11)
+           ax.scatter(iss_ra[-1], iss_dec[-1], color='#FFD700', s=350, marker='h', label='Live ISS',edgecolors='white', linewidths=2.0, zorder=21)
+           last_point = df.iloc[-1]
+           ax.text(iss_ra[-1], iss_dec[-1] + 1, # 在 ISS 上方偏一点标注
+                f"Live ISS Now\n({last_point['lat']:.2f}, {last_point['lon']:.2f})", 
+                color='#FFD700', fontsize=12, fontweight='bold', 
+                ha='center', va='bottom', zorder=30) # zorder=30
+
         
     # 3. 极坐标美化
     ax.set_theta_zero_location('N')
