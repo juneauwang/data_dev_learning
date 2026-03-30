@@ -115,8 +115,8 @@ def render_astronomy_monitoring():
     ax.set_theta_direction(-1)
     ax.set_rlim(180,0)
     center_theta = DYNAMIC_CENTER_RA * (np.pi / 12.0)
-    ax.set_thetamin(360) # 粗略计算显示范围
-    ax.set_thetamax(0)
+    ax.set_thetamin(0) # 粗略计算显示范围
+    ax.set_thetamax(360)
     ax.legend_.remove() if ax.legend_ else None
     if df is not None and not df.empty:
         # 把 ISS 的点放大两倍，用更亮眼醒目的亮橘色
