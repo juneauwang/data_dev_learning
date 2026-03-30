@@ -112,29 +112,33 @@ def render_astronomy_monitoring():
         
     # 3. 极坐标美化
     ax.set_theta_zero_location('N')
-    ax.set_theta_direction(-1)
-    ax.set_rlim(180,0)
-    center_theta = DYNAMIC_CENTER_RA * (np.pi / 12.0)
-    ax.set_thetamin(0) # 粗略计算显示范围
-    ax.set_thetamax(360)
-    ax.legend_.remove() if ax.legend_ else None
+    ax.set_theta_direction(-1) # 保持天文习惯：北为0，顺时针旋转
+    
+    # 强制显示全天球 R 轴
+    ax.set_rlim(180, 0) 
+
+    # 💥 重点：直接删除 ax.set_thetamin 和 ax.set_thetamax 
+    # 或者用下面这两行强制重置（不要调换顺序）：
+    ax.set_xlim(0, 2*np.pi) 
+
+    # 彻底关掉那个幽灵图例方块
+    if ax.legend_:
+        ax.legend_.remove()
+
+    # 再次确保 ISS 渲染代码块在最后，防止被覆盖
     if df is not None and not df.empty:
-        # 把 ISS 的点放大两倍，用更亮眼醒目的亮橘色
-        ax.scatter(iss_ra[-1], iss_dec[-1], color='#FF4500', s=800, # 粗大橘点
-                   marker='h', edgecolors='white', linewidths=3.0, zorder=30) 
+        # 画那个巨大的橘色点
+        ax.scatter(iss_ra[-1], iss_dec[-1], color='#FF4500', s=1000, 
+                   marker='h', edgecolors='white', linewidths=3.0, zorder=100)
         
-        # 增加更大字号、带描边的标注
-        last_point = df.iloc[-1]
-        ax.text(iss_ra[-1], iss_dec[-1] + 3, # 标注偏一点
-                f"🎯 LIVE ISS (RA {last_point['lat']:.1f}, Dec {last_point['lon']:.1f})", 
-                color='#FFD700', fontsize=16, fontweight='bold', 
-                ha='center', va='bottom', zorder=40,
-                bbox=dict(facecolor='#000008', alpha=0.7, edgecolor='none')) # 加一层深色底纹
+        # 标注文字
+        ax.text(iss_ra[-1], iss_dec[-1] + 5, "🎯 ISS HERE", 
+                color='#FFD700', fontsize=20, fontweight='bold', ha='center', zorder=101)
+
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.grid(False)
     # 强制刷新图例，确保亮橘色和金色六角星的说明出现在右上角
-    ax.legend(loc='upper right', facecolor='#000008', edgecolor='white', fontsize=8, labelcolor='white')
     plt.title(f"Live ISS Monitoring | {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", 
               color='white', pad=20)
     
