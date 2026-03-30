@@ -111,33 +111,31 @@ def render_astronomy_monitoring():
 
         
     # 3. 极坐标美化
+    # --- 4. 极坐标美化 (SRE 强制对焦版) ---
     ax.set_theta_zero_location('N')
-    ax.set_theta_direction(-1) # 保持天文习惯：北为0，顺时针旋转
+    ax.set_theta_direction(-1) 
     
-    # 强制显示全天球 R 轴
-    ax.set_rlim(180, 0) 
+    # 计算当前 ISS 的 R 值 (离北极的距离)
+    # ISS Lat 3.35 -> R = 90 - 3.35 = 86.65
+    current_iss_r = 90 - DYNAMIC_CENTER_DEC
+    
+    # 强制将 R 轴中心锁定在 ISS 附近，FOV 设为 40 度
+    # 这样不管它在赤道还是南极，镜头都会跟过去
+    ax.set_rlim(current_iss_r + 20, current_iss_r - 20) 
 
-    # 💥 重点：直接删除 ax.set_thetamin 和 ax.set_thetamax 
-    # 或者用下面这两行强制重置（不要调换顺序）：
+    # 彻底移除角度限制，防止扇形切割
     ax.set_xlim(0, 2*np.pi) 
 
-    # 彻底关掉那个幽灵图例方块
-    if ax.legend_:
-        ax.legend_.remove()
-
-    # 再次确保 ISS 渲染代码块在最后，防止被覆盖
     if df is not None and not df.empty:
-        # 画那个巨大的橘色点
-        ax.scatter(iss_ra[-1], iss_dec[-1], color='#FF4500', s=1000, 
-                   marker='h', edgecolors='white', linewidths=3.0, zorder=100)
+        # 画一个超级巨大的红点，zorder 拉到最高
+        ax.scatter(iss_ra[-1], iss_dec[-1], color='#FF0000', s=2000, 
+                   marker='o', edgecolors='white', linewidths=4, zorder=500)
         
-        # 标注文字
-        ax.text(iss_ra[-1], iss_dec[-1] + 5, "🎯 ISS HERE", 
-                color='#FFD700', fontsize=20, fontweight='bold', ha='center', zorder=101)
+        # 强制标注
+        ax.text(iss_ra[-1], iss_dec[-1], " <--- ISS HERE", 
+                color='red', fontsize=25, fontweight='bold', zorder=501)
 
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
-    ax.grid(False)
+    ax.grid(True, color='gray', alpha=0.3) # 暂时开启网格，方便肉眼定位坐标
     # 强制刷新图例，确保亮橘色和金色六角星的说明出现在右上角
     plt.title(f"Live ISS Monitoring | {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", 
               color='white', pad=20)
