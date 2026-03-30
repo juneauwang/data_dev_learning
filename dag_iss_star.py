@@ -113,10 +113,23 @@ def render_astronomy_monitoring():
     # 3. 极坐标美化
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(-1)
-    ax.set_rlim(90 - (DYNAMIC_CENTER_DEC + FOV/2), 90 - (DYNAMIC_CENTER_DEC - FOV/2))
+    ax.set_rlim(180,0)
     center_theta = DYNAMIC_CENTER_RA * (np.pi / 12.0)
     ax.set_thetamin(360) # 粗略计算显示范围
     ax.set_thetamax(0)
+    ax.legend_.remove() if ax.legend_ else None
+    if df is not None and not df.empty:
+        # 把 ISS 的点放大两倍，用更亮眼醒目的亮橘色
+        ax.scatter(iss_ra[-1], iss_dec[-1], color='#FF4500', s=800, # 粗大橘点
+                   marker='h', edgecolors='white', linewidths=3.0, zorder=30) 
+        
+        # 增加更大字号、带描边的标注
+        last_point = df.iloc[-1]
+        ax.text(iss_ra[-1], iss_dec[-1] + 3, # 标注偏一点
+                f"🎯 LIVE ISS (RA {last_point['lat']:.1f}, Dec {last_point['lon']:.1f})", 
+                color='#FFD700', fontsize=16, fontweight='bold', 
+                ha='center', va='bottom', zorder=40,
+                bbox=dict(facecolor='#000008', alpha=0.7, edgecolor='none')) # 加一层深色底纹
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.grid(False)
