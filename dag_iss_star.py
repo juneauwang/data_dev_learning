@@ -18,7 +18,7 @@ DATA_DIR = '/home/airflow/astronomy_data'
 
 def get_ch_data(hours=1):
     """从 ClickHouse 捞取数据并强制转型"""
-    query = f"SELECT ts, lat, lon FROM default.iss_clean WHERE ts > now() - interval {hours} hour ORDER BY ts ASC FORMAT JSONEachRow"
+    query = f"SELECT ts, lat, lon FROM default.iss_final WHERE ts > now() - interval {hours} hour ORDER BY ts ASC FORMAT JSONEachRow"
     try:
         response = requests.post(CH_URL, data=query, timeout=15)
         if response.status_code == 200 and response.text.strip():
@@ -73,9 +73,12 @@ def render_astronomy_monitoring():
         iss_ra, iss_dec_r = [], []
         
         for i in range(len(df)):
-            p = wgs84.latlon(df.iloc[i]['lat'], df.iloc[i]['lon'])
-            astrometric = earth.at(iss_times[i]).observe(p)
+            # 直接计算 ISS 在地心坐标系下的位置
+            p = earth + wgs84.latlon(df.iloc[i]['lat'], df.iloc[i]['lon'])
+            # position_at 会返回一个相对于地心的位置，不再需要 SSB
+            astrometric = p.at(iss_times[i])
             ra, dec, _ = astrometric.radec()
+            
             iss_ra.append(ra.hours * (np.pi / 12.0))
             iss_dec_r.append(90 - dec.degrees)
 
