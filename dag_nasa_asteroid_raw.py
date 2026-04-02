@@ -29,7 +29,7 @@ def fetch_nasa_neo_to_kafka():
     )
     
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=10,verify=False)
         response.raise_for_status()
         data = response.json()
         
